@@ -1,6 +1,7 @@
 import numpy as np
 import torch 
 
+from data.lidc import LIDC
 from data.chaos import Chaos
 from data.hippocampus import Hippocampus
 
@@ -14,7 +15,7 @@ def load_config(exp_id):
     cfg = Config()
     ''' Experiment '''
     cfg.experiment_idx = exp_id 
-    cfg.trial_id = None
+    cfg.trial_id = 1
     
     cfg.save_dir_prefix = 'Experiment_' # prefix for experiment folder
     cfg.name = 'voxel2mesh'
@@ -24,8 +25,10 @@ def load_config(exp_id):
     save_path: results will be saved at this location
     dataset_path: dataset must be stored here.
     '''
-    cfg.save_path = None    # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    cfg.dataset_path = None # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    #cfg.save_path = './experiments/test/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    #cfg.dataset_path = '/data/apps/users/wxc151/CHAOS/Train_Sets/CT' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.save_path = './experiments/LIDC/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.dataset_path = '/home/wxc151/spiculation/LIDC_spiculation/train/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     
     # cfg.save_path = '/your/path/to/experiments/miccai2020/' # results will be saved here
     # cfg.dataset_path = '/your/path/to/dataset' # path to the dataset
@@ -33,8 +36,8 @@ def load_config(exp_id):
     # Initialize data object for. 
     # Hippocampus() for hippocampus and Chaos() for liver dataset. 
 
-    cfg.data_obj = None     # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    # cfg.data_obj = Chaos() 
+    #cfg.data_obj = None     # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.data_obj = LIDC() 
     # cfg.data_obj = Hippocampus()
 
 
@@ -63,7 +66,7 @@ def load_config(exp_id):
     cfg.steps = 4
 
     # Only supports batch size 1 at the moment. 
-    cfg.batch_size = 1 
+    cfg.batch_size = 1
 
 
     cfg.num_classes = 2

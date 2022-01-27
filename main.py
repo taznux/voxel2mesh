@@ -39,7 +39,7 @@ def init(cfg):
 
     if not os.path.isdir(trial_save_path):
         mkdir(trial_save_path) 
-        copytree(os.getcwd(), trial_save_path + '/source_code', ignore=ignore_patterns('*.git','*.txt','*.tif', '*.pkl', '*.off', '*.so', '*.json','*.jsonl','*.log','*.patch','*.yaml','wandb','run-*'))
+        #copytree(os.getcwd(), trial_save_path + '/source_code', ignore=ignore_patterns('*.git','*.txt','*.tif', '*.pkl', '*.off', '*.so', '*.json','*.jsonl','*.log','*.patch','*.yaml','wandb','run-*'))
 
   
     seed = trial_id
@@ -51,9 +51,8 @@ def init(cfg):
     return trial_save_path, trial_id
 
 def main():
- 
     
-    exp_id = 3
+    exp_id = 2
 
     # Initialize
     cfg = load_config(exp_id)
@@ -96,10 +95,10 @@ def main():
         epoch = 0
 
 
-    trainer.train(start_iteration=epoch) 
+    #trainer.train(start_iteration=epoch) 
 
     # To evaluate a pretrained model, uncomment line below and comment the line above
-    # evaluator.evaluate(epoch)
+    evaluator.evaluate(epoch)
 
 if __name__ == "__main__": 
     main()

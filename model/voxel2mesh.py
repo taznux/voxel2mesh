@@ -162,8 +162,8 @@ class Voxel2Mesh(nn.Module):
 
                     # Get candidate vertices using uniform unpool
                     vertices, faces_ = uniform_unpool(vertices, faces)  
-                    latent_features, _ = uniform_unpool(latent_features, faces)  
-                    sphere_vertices, _ = uniform_unpool(sphere_vertices, faces) 
+                    latent_features, _ = uniform_unpool(latent_features, faces, True, False)  
+                    sphere_vertices, _ = uniform_unpool(sphere_vertices, faces, True, False) 
                     faces = faces_  
 
                 
@@ -213,15 +213,15 @@ class Voxel2Mesh(nn.Module):
                 pred_mesh = Meshes(verts=list(vertices), faces=list(faces))
                 pred_points = sample_points_from_meshes(pred_mesh, 3000)
                 
-                chamfer_loss +=  chamfer_distance(pred_points, target)[0]
-                laplacian_loss +=   mesh_laplacian_smoothing(pred_mesh, method="uniform")
+                chamfer_loss += chamfer_distance(pred_points, target)[0]
+                laplacian_loss += mesh_laplacian_smoothing(pred_mesh, method="uniform")
                 normal_consistency_loss += mesh_normal_consistency(pred_mesh) 
                 edge_loss += mesh_edge_loss(pred_mesh) 
 
         
         
  
-        loss = 1 * chamfer_loss + 1 * ce_loss + 0.1 * laplacian_loss + 1 * edge_loss + 0.1 * normal_consistency_loss
+        loss = 1 * chamfer_loss + 1 * ce_loss + 0.05 * laplacian_loss + 0.5 * edge_loss + 0.05 * normal_consistency_loss
  
         log = {"loss": loss.detach(),
                "chamfer_loss": chamfer_loss.detach(), 

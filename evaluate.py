@@ -18,9 +18,10 @@ from utils.rasterize.rasterize import Rasterize
 
 class Structure(object):
 
-    def __init__(self, voxel=None, mesh=None, points=None):
+    def __init__(self, voxel=None, mesh=None, points=None, sphr_mesh=None):
         self.voxel = voxel 
         self.mesh = mesh   
+        self.sphr_mesh = sphr_mesh   
         self.points = points
  
 def write_to_wandb(writer, epoch, split, performences, num_classes): 
@@ -40,7 +41,7 @@ class Evaluator(object):
         self.data = data
         self.net = net
         self.current_best = None
-        self.save_path = save_path + '/best_performance3' 
+        self.save_path = save_path + '/best_performance' 
         self.latest = save_path + '/latest' 
         self.optimizer = optimizer
         self.config = config
@@ -96,6 +97,7 @@ class Evaluator(object):
             pred = self.net(data) 
 
             pred_meshes = []
+            sphr_meshes = []
             true_meshes = []
             true_points = []
             pred_voxels = torch.zeros_like(x)[:,0].long()
@@ -105,10 +107,12 @@ class Evaluator(object):
 
                 pred_vertices = pred[c][-1][0].detach().data.cpu()
                 pred_faces = pred[c][-1][1].detach().data.cpu()
+                sphr_vertices = pred[c][-1][4].detach().data.cpu()
                 true_vertices = data['vertices_mc'][c].data.cpu()
                 true_faces = data['faces_mc'][c].data.cpu()
 
                 pred_meshes += [{'vertices': pred_vertices, 'faces':pred_faces, 'normals':None}] 
+                sphr_meshes += [{'vertices': sphr_vertices, 'faces':pred_faces, 'normals':None}] 
                 true_meshes += [{'vertices': true_vertices, 'faces':true_faces, 'normals':None}] 
                 true_points += [data['surface_points'][c].data.cpu()]
 
@@ -124,7 +128,7 @@ class Evaluator(object):
 
             x = x.detach().data.cpu()  
             y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points)
-            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels_rasterized)
+            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels_rasterized, sphr_mesh=sphr_meshes)
  
 
         x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
@@ -173,8 +177,9 @@ class Evaluator(object):
                         save_to_obj(save_path + '/points/' + mode + 'pred_' + str(i) + '_part_' + str(p) + '.obj', pred_points, [])
 
             if y_hat.mesh is not None:
-                for p, (true_mesh, pred_mesh) in enumerate(zip(y.mesh, y_hat.mesh)):
+                for p, (true_mesh, pred_mesh, sphr_mesh) in enumerate(zip(y.mesh, y_hat.mesh, y_hat.sphr_mesh)):
                     save_to_obj(save_path + '/mesh/' + mode + 'true_' + str(i) + '_part_' + str(p) + '.obj', true_mesh['vertices'], true_mesh['faces'], true_mesh['normals'])
+                    save_to_obj(save_path + '/mesh/' + mode + 'sphr_' + str(i) + '_part_' + str(p) + '.obj', sphr_mesh['vertices'], sphr_mesh['faces'], sphr_mesh['normals'])
                     save_to_obj(save_path + '/mesh/' + mode + 'pred_' + str(i) + '_part_' + str(p) + '.obj', pred_mesh['vertices'], pred_mesh['faces'], pred_mesh['normals'])
 
  

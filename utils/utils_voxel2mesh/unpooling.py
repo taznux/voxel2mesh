@@ -7,7 +7,7 @@ def get_commont_vertex(edge_pair):
 
     return edge_pair[:, 0][a + b]
 
-def uniform_unpool(vertices_, faces_, identical_face_batch=True):
+def uniform_unpool(vertices_, faces_, identical_face_batch=True, new_faces=True):
     if vertices_ is None:
         return None, None
     batch_size , _, _ = vertices_.shape
@@ -29,27 +29,29 @@ def uniform_unpool(vertices_, faces_, identical_face_batch=True):
         new_vertices = torch.cat([vertices, new_vertices], dim=0)  # <----------------------- new vertices + old vertices
         new_vertices_all += [new_vertices[None]]
 
-        ''' Compute new faces '''
-        corner_faces = []
-        middle_face = []
-        for j, combination in enumerate(edge_combinations_3):
-            edge_pair = edges[:, combination]
-            common_vertex = get_commont_vertex(edge_pair)
+        if new_faces:
+            ''' Compute new faces '''
+            corner_faces = []
+            middle_face = []
+            for j, combination in enumerate(edge_combinations_3):
+                edge_pair = edges[:, combination]
+                common_vertex = get_commont_vertex(edge_pair)
 
-            new_vertex_1 = unique_edge_indices[torch.arange(0, 3 * face_count, 3) + combination[0]] + vertices_count
-            new_vertex_2 = unique_edge_indices[torch.arange(0, 3 * face_count, 3) + combination[1]] + vertices_count
+                new_vertex_1 = unique_edge_indices[torch.arange(0, 3 * face_count, 3) + combination[0]] + vertices_count
+                new_vertex_2 = unique_edge_indices[torch.arange(0, 3 * face_count, 3) + combination[1]] + vertices_count
 
-            middle_face += [new_vertex_1[:, None], new_vertex_2[:, None]]
-            corner_faces += [torch.cat([common_vertex[:, None], new_vertex_1[:, None], new_vertex_2[:, None]], dim=1)]
+                middle_face += [new_vertex_1[:, None], new_vertex_2[:, None]]
+                corner_faces += [torch.cat([common_vertex[:, None], new_vertex_1[:, None], new_vertex_2[:, None]], dim=1)]
 
-        corner_faces = torch.cat(corner_faces, dim=0)
-        middle_face = torch.cat(middle_face, dim=1)
-        middle_face = torch.unique(middle_face, dim=1)
-        new_faces_all += [torch.cat([corner_faces, middle_face], dim=0)[None]]  # new faces-3
+            corner_faces = torch.cat(corner_faces, dim=0)
+            middle_face = torch.cat(middle_face, dim=1)
+            middle_face = torch.unique(middle_face, dim=1)
+            new_faces_all += [torch.cat([corner_faces, middle_face], dim=0)[None]]  # new faces-3
 
         if identical_face_batch:
             new_vertices_all = new_vertices_all[0].repeat(batch_size, 1, 1)
-            new_faces_all = new_faces_all[0].repeat(batch_size, 1, 1)
+            if new_faces:
+                new_faces_all = new_faces_all[0].repeat(batch_size, 1, 1)
             break
 
     return new_vertices_all, new_faces_all

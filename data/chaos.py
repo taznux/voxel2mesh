@@ -100,14 +100,35 @@ class Chaos():
         for sample in samples:
             if 'pickle' not in sample:
                 print('.', end='', flush=True)
-                x = [] 
+                images = []
                 images_path = [dir for dir in os.listdir('{}/{}/DICOM_anon'.format(data_root, sample)) if 'dcm' in dir]
+                images_path.sort()
                 for image_path in images_path:
-                    file = pydicom.dcmread('{}/{}/DICOM_anon/{}'.format(data_root, sample, image_path))
-                    x += [file.pixel_array] 
+                    image = pydicom.dcmread('{}/{}/DICOM_anon/{}'.format(data_root, sample, image_path))
+                    images.append(image)
 
-                d_resolution = file.SliceThickness
-                h_resolution, w_resolution = file.PixelSpacing 
+                zs    = [float(img.ImagePositionPatient[-1]) for img in images]
+                inums = [float(img.InstanceNumber) for img in images]
+                inds = list(range(len(zs)))
+                while np.unique(zs).shape[0] != len(inds):
+                    for i in inds:
+                        for j in inds:
+                            if i!=j and zs[i] == zs[j]:
+                                k = i if inums[i] > inums[j] else j
+                                inds.pop(inds.index(k))
+
+                # Prune the duplicates found in the loops above.
+                zs     = [zs[i]     for i in range(len(zs))     if i in inds]
+                images = [images[i] for i in range(len(images)) if i in inds]
+
+                # Sort everything by (now unique) ImagePositionPatient z coordinate.
+                sort_inds = np.argsort(zs)[::-1]
+                images    = [images[s] for s in sort_inds]
+                ###
+                x = [img.pixel_array for img in images]
+
+                d_resolution = image.SliceThickness
+                h_resolution, w_resolution = image.PixelSpacing 
                 x = np.float32(np.array(x))
 
  
@@ -150,6 +171,7 @@ class Chaos():
  
                 y = [] 
                 images_path = [dir for dir in os.listdir('{}/{}/Ground'.format(data_root, sample)) if 'png' in dir]
+                images_path.sort()
                 for image_path in images_path:
                     file = io.imread('{}/{}/Ground/{}'.format(data_root, sample, image_path))
                     y += [file]  

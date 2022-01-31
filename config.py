@@ -15,7 +15,7 @@ def load_config(exp_id):
     cfg = Config()
     ''' Experiment '''
     cfg.experiment_idx = exp_id 
-    cfg.trial_id = 1
+    cfg.trial_id = None
     
     cfg.save_dir_prefix = 'Experiment_' # prefix for experiment folder
     cfg.name = 'voxel2mesh'
@@ -38,6 +38,7 @@ def load_config(exp_id):
 
     #cfg.data_obj = None     # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     cfg.data_obj = LIDC() 
+    #cfg.data_obj = Chaos() 
     # cfg.data_obj = Hippocampus()
 
 
@@ -82,6 +83,6 @@ def load_config(exp_id):
     cfg.eval_every = 1000 # saves results to disk
 
     # ''' Rreporting '''
-    # cfg.wab = True # use weight and biases for reporting
+    # cfg.wab = False # use weight and biases for reporting
     
     return cfg

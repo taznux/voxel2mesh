@@ -1,5 +1,6 @@
 import torch
 from scipy.spatial import ConvexHull
+import trimesh
 from itertools import combinations
 def get_commont_vertex(edge_pair):
     a = edge_pair[:, 0] == edge_pair[:, 1]
@@ -101,7 +102,7 @@ def adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
 
     vertices_needed = vertices_secondary[dist > threshold]
     
-    sphere_vertices_needed = sphere_vertices_secondary[dist > threshold] 
+    sphere_vertices_needed = sphere_vertices_secondary[dist > threshold]
     if latent_features is not None:
         latent_features_needed = latent_features_secondary[dist > threshold]
 
@@ -112,9 +113,39 @@ def adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
     sphere_vertices = torch.cat([sphere_vertices_primary,sphere_vertices_needed],dim=0) 
     sphere_vertices = sphere_vertices/torch.sqrt(torch.sum(sphere_vertices**2,dim=1)[:,None])
     hull = ConvexHull(sphere_vertices.data.cpu().numpy())  
-    faces = torch.from_numpy(hull.simplices).long().cuda()[None] 
+    faces = torch.from_numpy(hull.simplices).long().cuda()
 
-    sphere_vertices = sphere_vertices[None]  
+    """
+    selected = torch.cat([torch.arange(N_prev).cuda(), (dist > threshold).nonzero()[:,0]+N_prev])
+    #print(sphere_vertices.shape,faces.shape)
+
+    mesh = trimesh.Trimesh(vertices=sphere_vertices.data.cpu().numpy(), faces=hull.simplices)
+    trimesh.repair.fix_normals(mesh)
+    #print(mesh, dist.shape, (dist > threshold).sum())
+    #mesh.show()
+    faces = torch.from_numpy(mesh.faces).long().cuda()
+
+    f0 = (faces[:,0]==selected.reshape(-1,1)).any(0)
+    f1 = (faces[:,1]==selected.reshape(-1,1)).any(0)
+    f2 = (faces[:,2]==selected.reshape(-1,1)).any(0)
+    faces[~f0,0] = -1
+    faces[~f1,1] = -1
+    faces[~f2,2] = -1
+    faces[~f0,0] = faces[~f0,:].max(1)[0]
+    faces[~f1,1] = faces[~f1,:].max(1)[0]
+    faces[~f2,2] = faces[~f2,:].max(1)[0]
+    
+    faces = faces[f0|f1|f2,:]
+    mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=faces.data.cpu().numpy())
+    trimesh.repair.fix_normals(mesh)
+    trimesh.repair.fill_holes(mesh)
+    #mesh.show()
+    #print(mesh, mesh.faces, mesh.faces.max(), vertices.shape, N_prev)
+    faces = torch.from_numpy(mesh.faces).long().cuda()[None]
+    """
+    sphere_vertices = sphere_vertices[None]
+    faces = faces[None]
+    
 
     return vertices, faces, latent_features, sphere_vertices
 

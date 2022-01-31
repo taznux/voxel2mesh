@@ -10,6 +10,7 @@ import os
 from scipy import ndimage
 from IPython import embed
 import wandb
+import trimesh
 from utils.rasterize.rasterize import Rasterize
 # from utils import stns
 

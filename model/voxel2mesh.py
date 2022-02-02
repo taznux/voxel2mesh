@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F 
 
 from pytorch3d.structures import Meshes 
-from pytorch3d.ops import sample_points_from_meshes
+from pytorch3d.ops import sample_points_from_meshes, SubdivideMeshes
 from pytorch3d.loss import (chamfer_distance,  mesh_edge_loss, mesh_laplacian_smoothing, mesh_normal_consistency)
 
 import numpy as np
@@ -160,11 +160,23 @@ class Voxel2Mesh(nn.Module):
                     faces_prev = faces
                     _, N_prev, _ = vertices.shape 
 
+                    #print(vertices.shape, faces.shape, sphere_vertices.shape, latent_features.shape)
                     # Get candidate vertices using uniform unpool
-                    vertices, faces_ = uniform_unpool(vertices, faces)  
-                    latent_features, _ = uniform_unpool(latent_features, faces, True, False)  
-                    sphere_vertices, _ = uniform_unpool(sphere_vertices, faces, True, False) 
-                    faces = faces_  
+                    mesh = Meshes(verts=list(vertices), faces=list(faces))
+                    
+                    vert_feats = torch.cat((sphere_vertices, latent_features), 2)[0]
+
+                    subdivide = SubdivideMeshes()
+                    mesh, vert_feats = subdivide(mesh, feats=vert_feats)
+                    vertices = mesh.verts_list()[0][None]
+                    faces = mesh.faces_list()[0][None]
+                    sphere_vertices = vert_feats[:,:3][None]
+                    latent_features = vert_feats[:,3:][None]
+                    #print(vertices.shape, faces.shape, sphere_vertices.shape, latent_features.shape)
+                    #vertices, faces_ = uniform_unpool(vertices, faces)  
+                    #latent_features, _ = uniform_unpool(latent_features, faces, True, False)  
+                    #sphere_vertices, _ = uniform_unpool(sphere_vertices, faces, True, False) 
+                    #faces = faces_  
 
                 
                 A, D = adjacency_matrix(vertices, faces)
@@ -221,7 +233,7 @@ class Voxel2Mesh(nn.Module):
         
         
  
-        loss = 1 * chamfer_loss + 1 * ce_loss + 0.1 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
+        loss = 1 * chamfer_loss + 1 * ce_loss + 0.01 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
 
  
         log = {"loss": loss.detach(),

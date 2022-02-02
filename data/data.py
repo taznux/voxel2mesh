@@ -179,7 +179,7 @@ def voxel2mesh(volume, gap, shape):
     :param shape:
     :return:
     '''
-    vertices_mc, faces_mc, _, _ = measure.marching_cubes_lewiner(volume.cpu().data.numpy(), 0, step_size=gap, allow_degenerate=False)
+    vertices_mc, faces_mc, _, _ = measure.marching_cubes(volume.cpu().data.numpy(), 0, step_size=gap, allow_degenerate=False)
     vertices_mc = torch.flip(torch.from_numpy(vertices_mc), dims=[1]).float()  # convert z,y,x -> x, y, z
     vertices_mc = normalize_vertices(vertices_mc, shape)
     faces_mc = torch.from_numpy(faces_mc).long()

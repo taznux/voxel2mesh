@@ -64,7 +64,7 @@ class Evaluator(object):
         performences = {}
         predictions = {}
 
-        for split in [DataModes.TESTING]:
+        for split in [DataModes.VALIDATION]:
             dataloader = DataLoader(self.data[split], batch_size=1, shuffle=False) 
             performences[split], predictions[split] = self.evaluate_set(dataloader)
 
@@ -78,7 +78,7 @@ class Evaluator(object):
             
              
             self.save_model(epoch)
-            self.save_results(predictions[DataModes.TESTING], epoch, performences[DataModes.TESTING], self.save_path, '/testing_')
+            self.save_results(predictions[DataModes.VALIDATION], epoch, performences[DataModes.VALIDATION], self.save_path, '/VALIDATION_')
             self.current_best = performences
   
 

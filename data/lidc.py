@@ -74,7 +74,7 @@ class LIDC():
 
         data_root = cfg.dataset_path
         data = {}
-        for i, datamode in enumerate([DataModes.TRAINING, DataModes.TESTING]):
+        for i, datamode in enumerate([DataModes.TRAINING, DataModes.VALIDATION, DataModes.TESTING]):
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'rb') as handle:
                 samples, sample_pids = pickle.load(handle)
                 new_samples = sample_to_sample_plus(samples, cfg, datamode)
@@ -157,12 +157,12 @@ class LIDC():
     def update_checkpoint(self, best_so_far, new_value):
 
         key = 'jaccard'
-        new_value = new_value[DataModes.TESTING][key]
+        new_value = new_value[DataModes.VALIDATION][key]
 
         if best_so_far is None:
             return True
         else:
-            best_so_far = best_so_far[DataModes.TESTING][key]
+            best_so_far = best_so_far[DataModes.VALIDATION][key]
             return True if np.mean(new_value) > np.mean(best_so_far) else False
 
 

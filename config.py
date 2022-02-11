@@ -28,7 +28,7 @@ def load_config(exp_id):
     #cfg.save_path = './experiments/test/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     #cfg.dataset_path = '/data/apps/users/wxc151/CHAOS/Train_Sets/CT' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     cfg.save_path = './experiments/LIDC/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    cfg.dataset_path = '/home/wxc151/spiculation/LIDC_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.dataset_path = '/home/wxc151/data/spiculation/LIDC_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     
     # cfg.save_path = '/your/path/to/experiments/miccai2020/' # results will be saved here
     # cfg.dataset_path = '/your/path/to/dataset' # path to the dataset

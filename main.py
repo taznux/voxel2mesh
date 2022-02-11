@@ -1,4 +1,3 @@
- 
 import os
 GPU_index = "0"
 os.environ["CUDA_VISIBLE_DEVICES"] = GPU_index
@@ -50,9 +49,8 @@ def init(cfg):
 
     return trial_save_path, trial_id
 
-def main():
 
-    
+def main():
     exp_id = 1
 
     # Initialize

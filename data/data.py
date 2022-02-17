@@ -94,12 +94,11 @@ def get_item(item, mode, config):
     faces_mc_all = [] 
     for i in range(1, config.num_classes):   
         shape = torch.tensor(y.shape)[None].float()
-        if mode != DataModes.TRAINING:
-            gap = 1
-            y_ = clean_border_pixels((y==i).long(), gap=gap)
-            vertices_mc, faces_mc = voxel2mesh(y_, gap, shape)
-            vertices_mc_all += [vertices_mc]
-            faces_mc_all += [faces_mc]
+        gap = 1
+        y_ = clean_border_pixels((y==i).long(), gap=gap)
+        vertices_mc, faces_mc = voxel2mesh(y_, gap, shape)
+        vertices_mc_all += [vertices_mc]
+        faces_mc_all += [faces_mc]
        
      
         y_outer = sample_outer_surface_in_voxel((y==i).long()) 
@@ -113,19 +112,13 @@ def get_item(item, mode, config):
         point_count = 3000
         surface_points_normalized_all += [surface_points_normalized[perm[:np.min([len(perm), point_count])]].cuda()]  # randomly pick 3000 points
     
-    if mode == DataModes.TRAINING:
-        return {   'x': x,  
-                   'y_voxels': y, 
-                   'surface_points': surface_points_normalized_all, 
-                   'unpool':[0, 1, 0, 1, 0]
-                }
-    else:
-        return {   'x': x, 
-                   'y_voxels': y, 
-                   'vertices_mc': vertices_mc_all,
-                   'faces_mc': faces_mc_all,
-                   'surface_points': surface_points_normalized_all, 
-                   'unpool':[0, 1, 1, 1, 1]}
+
+    return {   'x': x, 
+                'y_voxels': y, 
+                'vertices_mc': vertices_mc_all,
+                'faces_mc': faces_mc_all,
+                'surface_points': surface_points_normalized_all, 
+                'unpool':[0, 1, 1, 1, 1]}
 
 def sample_outer_surface_in_voxel(volume): 
     # inner surface

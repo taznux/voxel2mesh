@@ -80,6 +80,23 @@ class Evaluator(object):
             self.save_model(epoch)
             self.save_results(predictions[DataModes.VALIDATION], epoch, performences[DataModes.VALIDATION], self.save_path, '/VALIDATION_')
             self.current_best = performences
+
+
+    def evaluate_all(self, epoch, writer=None, backup_writer=None):
+        # self.net = self.net.eval()
+        performences = {}
+        predictions = {}
+
+        for split in [DataModes.TRAINING, DataModes.VALIDATION, DataModes.TESTING]:
+            dataloader = DataLoader(self.data[split], batch_size=1, shuffle=False) 
+            performences[split], predictions[split] = self.evaluate_set(dataloader)
+
+            mkdir(self.save_path) 
+            mkdir(self.save_path + '/mesh')
+            mkdir(self.save_path + '/voxels')
+            
+            self.save_model(epoch)
+            self.save_results(predictions[split], epoch, performences[split], self.save_path, f'/{split.capitalize()}_')
   
 
     def predict(self, data, config):

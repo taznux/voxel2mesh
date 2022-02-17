@@ -15,7 +15,7 @@ def load_config(exp_id):
     cfg = Config()
     ''' Experiment '''
     cfg.experiment_idx = exp_id 
-    cfg.trial_id = None
+    cfg.trial_id = 1
     
     cfg.save_dir_prefix = 'Experiment_' # prefix for experiment folder
     cfg.name = 'voxel2mesh'

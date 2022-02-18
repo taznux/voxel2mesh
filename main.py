@@ -51,7 +51,7 @@ def init(cfg):
 
 
 def main():
-    exp_id = 1
+    exp_id = 3
 
     # Initialize
     cfg = load_config(exp_id)

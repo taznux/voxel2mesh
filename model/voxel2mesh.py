@@ -11,7 +11,7 @@ from itertools import product, combinations, chain
 from scipy.spatial import ConvexHull
 
 from IPython import embed 
-import time 
+import time
 
 from utils.utils_common import crop_and_merge  
 from utils.utils_voxel2mesh.graph_conv import adjacency_matrix, Features2Features, Feature2VertexLayer 
@@ -22,6 +22,8 @@ from utils.utils_voxel2mesh.file_handle import read_obj
 from utils.utils_voxel2mesh.unpooling import uniform_unpool, adoptive_unpool
 
 from utils.utils_unet import UNetLayer
+from utils.angle_distortions import angle_distortions
+from utils.area_distortions import area_distortions
 
 
   
@@ -196,6 +198,7 @@ class Voxel2Mesh(nn.Module):
 
                 voxel_pred = self.final_layer(x) if i == len(self.up_std_conv_layers)-1 else None
 
+
                 pred[k] += [[vertices, faces, latent_features, voxel_pred, sphere_vertices]]
  
         return pred
@@ -217,12 +220,18 @@ class Voxel2Mesh(nn.Module):
         edge_loss = torch.tensor(0).float().cuda()
         laplacian_loss = torch.tensor(0).float().cuda()
         normal_consistency_loss = torch.tensor(0).float().cuda()  
+        area_angle_balance_loss = torch.tensor(0).float().cuda()  
 
         for c in range(self.config.num_classes-1):
             target = data['surface_points'][c].cuda() 
-            for k, (vertices, faces, _, _, _) in enumerate(pred[c][1:]):
+            for k, (vertices, faces, _, _, sphere_vertices) in enumerate(pred[c][1:]):
       
                 pred_mesh = Meshes(verts=list(vertices), faces=list(faces))
+                sphere_mesh = Meshes(verts=list(sphere_vertices), faces=list(faces))
+                area_d = area_distortions(pred_mesh, sphere_mesh)
+                angle_d = angle_distortions(pred_mesh, sphere_mesh)
+                area_angle_balance_loss += (angle_d/(area_d+1)).mean()
+
                 pred_points = sample_points_from_meshes(pred_mesh, 3000)
                 
                 chamfer_loss +=  chamfer_distance(pred_points, target)[0]
@@ -233,7 +242,7 @@ class Voxel2Mesh(nn.Module):
         
         
  
-        loss = 1 * chamfer_loss + 1 * ce_loss + 0.01 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
+        loss = area_angle_balance_loss + 1 * chamfer_loss + 1 * ce_loss + 0.01 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
 
  
         log = {"loss": loss.detach(),

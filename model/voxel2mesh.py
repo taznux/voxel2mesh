@@ -220,7 +220,7 @@ class Voxel2Mesh(nn.Module):
         edge_loss = torch.tensor(0).float().cuda()
         laplacian_loss = torch.tensor(0).float().cuda()
         normal_consistency_loss = torch.tensor(0).float().cuda()  
-        area_angle_balance_loss = torch.tensor(0).float().cuda()  
+        angle_distortion_loss = torch.tensor(0).float().cuda()  
 
         for c in range(self.config.num_classes-1):
             target = data['surface_points'][c].cuda() 
@@ -228,9 +228,8 @@ class Voxel2Mesh(nn.Module):
       
                 pred_mesh = Meshes(verts=list(vertices), faces=list(faces))
                 sphere_mesh = Meshes(verts=list(sphere_vertices), faces=list(faces))
-                area_d = area_distortions(pred_mesh, sphere_mesh)
                 angle_d = angle_distortions(pred_mesh, sphere_mesh)
-                area_angle_balance_loss += (angle_d/(area_d+1)).mean()
+                angle_distortion_loss += (angle_d**2).mean()
 
                 pred_points = sample_points_from_meshes(pred_mesh, 3000)
                 
@@ -242,7 +241,7 @@ class Voxel2Mesh(nn.Module):
         
         
  
-        loss = area_angle_balance_loss + 1 * chamfer_loss + 1 * ce_loss + 0.01 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
+        loss = 0.1 * angle_distortion_loss + 1 * chamfer_loss + 1 * ce_loss + 0.01 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
 
  
         log = {"loss": loss.detach(),

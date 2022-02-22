@@ -26,11 +26,11 @@ class Structure(object):
         self.points = points
  
 def write_to_wandb(writer, epoch, split, performences, num_classes): 
-    log_vals = {}
+    log_vals = {"epoch":epoch}
     for key, value in performences[split].items():
-        log_vals[split + '_' + key + '/mean'] = np.mean(performences[split][key]) 
+        log_vals[split + '_' + key + '/mean'] = np.nanmean(performences[split][key]) 
         for i in range(1, num_classes):
-            log_vals[split + '_' + key + '/class_' + str(i)] = np.mean(performences[split][key][:, i - 1]) 
+            log_vals[split + '_' + key + '/class_' + str(i)] = np.nanmean(performences[split][key][:, i - 1]) 
     try:
         wandb.log(log_vals)
     except:
@@ -78,7 +78,7 @@ class Evaluator(object):
             
              
             self.save_model(epoch)
-            self.save_results(predictions[DataModes.VALIDATION], epoch, performences[DataModes.VALIDATION], self.save_path, '/VALIDATION_')
+            self.save_results(predictions[DataModes.VALIDATION], epoch, performences[DataModes.VALIDATION], self.save_path, split)
             self.current_best = performences
 
 
@@ -96,7 +96,7 @@ class Evaluator(object):
             mkdir(self.save_path + '/voxels')
             
             self.save_model(epoch)
-            self.save_results(predictions[split], epoch, performences[split], self.save_path, f'/{split.capitalize()}_')
+            self.save_results(predictions[split], epoch, performences[split], self.save_path, split)
   
 
     def predict(self, data, config):
@@ -146,7 +146,7 @@ class Evaluator(object):
 
             x = x.detach().data.cpu()  
             y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points)
-            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels_rasterized, sphr_mesh=sphr_meshes)
+            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes)
  
 
         x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
@@ -174,31 +174,33 @@ class Evaluator(object):
             performance[key] = np.array(performance[key])
         return performance, predictions
 
-    def save_results(self, predictions, epoch, performence, save_path, mode):
-
+    def save_results(self, predictions, epoch, performence, save_path, split):
         xs = []
         ys_voxels = []
         ys_points = []
         y_hats_voxels = []
         y_hats_points = []
         y_hats_meshes = []
+
+        mode =  f'/{split}_'
  
         for i, data in enumerate(predictions):
             x, y, y_hat = data
+            pid = self.data[split][i]['pid']
 
             xs.append(x[0, 0])
 
             if y_hat.points is not None:
                 for p, (true_points, pred_points) in enumerate(zip(y.points, y_hat.points)):
-                    save_to_obj(save_path + '/points/' + mode + 'true_' + str(i) + '_part_' + str(p) + '.obj', true_points, [])
+                    save_to_obj(save_path + '/points/' + mode + 'true_' + pid + '_part_' + str(p) + '.obj', true_points, [])
                     if pred_points.shape[1] > 0:
-                        save_to_obj(save_path + '/points/' + mode + 'pred_' + str(i) + '_part_' + str(p) + '.obj', pred_points, [])
+                        save_to_obj(save_path + '/points/' + mode + 'pred_' + pid + '_part_' + str(p) + '.obj', pred_points, [])
 
             if y_hat.mesh is not None:
                 for p, (true_mesh, pred_mesh, sphr_mesh) in enumerate(zip(y.mesh, y_hat.mesh, y_hat.sphr_mesh)):
-                    save_to_obj(save_path + '/mesh/' + mode + 'true_' + str(i) + '_part_' + str(p) + '.obj', true_mesh['vertices'], true_mesh['faces'], true_mesh['normals'])
-                    save_to_obj(save_path + '/mesh/' + mode + 'sphr_' + str(i) + '_part_' + str(p) + '.obj', sphr_mesh['vertices'], sphr_mesh['faces'], sphr_mesh['normals'])
-                    save_to_obj(save_path + '/mesh/' + mode + 'pred_' + str(i) + '_part_' + str(p) + '.obj', pred_mesh['vertices'], pred_mesh['faces'], pred_mesh['normals'])
+                    save_to_obj(save_path + '/mesh/' + mode + 'true_' + pid + '_part_' + str(p) + '.obj', true_mesh['vertices'], true_mesh['faces'], true_mesh['normals'])
+                    save_to_obj(save_path + '/mesh/' + mode + 'sphr_' + pid + '_part_' + str(p) + '.obj', sphr_mesh['vertices'], sphr_mesh['faces'], sphr_mesh['normals'])
+                    save_to_obj(save_path + '/mesh/' + mode + 'pred_' + pid + '_part_' + str(p) + '.obj', pred_mesh['vertices'], pred_mesh['faces'], pred_mesh['normals'])
 
  
             if y_hat.voxel is not None:
@@ -226,13 +228,15 @@ class Evaluator(object):
             ys_voxels = F.upsample(ys_voxels[None, None].float(), size=xs.shape)[0, 0].long()
 
             y_overlap = y_hats_voxels.clone()
-            y_overlap[ys_voxels==1] = 3 
-            y_overlap[(ys_voxels==1) & (y_hats_voxels==1)] = 2
+            y_overlap[ys_voxels==1] = 5
+            y_overlap[ys_voxels==2] = 6 
+            y_overlap[(ys_voxels==1) & (y_hats_voxels==1)] = 3
+            y_overlap[(ys_voxels==2) & (y_hats_voxels==2)] = 4
             
 
             overlay_y_hat = blend_cpu(xs, y_hats_voxels, self.config.num_classes)
             overlay_y = blend_cpu(xs, ys_voxels, self.config.num_classes)
-            overlay_overlap = blend_cpu(xs, y_overlap, 4)
+            overlay_overlap = blend_cpu(xs, y_overlap, 7)
             overlay = np.concatenate([overlay_y, overlay_y_hat, overlay_overlap], axis=2)
             io.imsave(save_path + mode + 'overlay_y_hat.tif', overlay)
             

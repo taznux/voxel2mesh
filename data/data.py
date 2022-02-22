@@ -48,6 +48,8 @@ def get_item(item, mode, config):
     y_outer = item.y_outer.cuda()   
     shape = item.shape  
 
+   # print("Y1", y.unique(), flush=True)
+
     # augmentation done only during training
     if mode == DataModes.TRAINING:  # if training do augmentation
         if torch.rand(1)[0] > 0.5:
@@ -88,15 +90,21 @@ def get_item(item, mode, config):
  
         x, y, y_outer = stns.transform(theta, x, y, y_outer) 
   
-
+    #print("Y", y.unique(), flush=True)
     surface_points_normalized_all = []
     vertices_mc_all = []
     faces_mc_all = [] 
     for i in range(1, config.num_classes):   
         shape = torch.tensor(y.shape)[None].float()
         gap = 1
-        y_ = clean_border_pixels((y==i).long(), gap=gap)
-        vertices_mc, faces_mc = voxel2mesh(y_, gap, shape)
+        #y_ = clean_border_pixels((y==i).long(), gap=gap)
+        try:
+            y_ = clean_border_pixels((y>=i).long(), gap=gap)
+            vertices_mc, faces_mc = voxel2mesh(y_, gap, shape)
+        except:
+            print("no surface", i, (y==1).sum(), (y==2).sum())
+            y_ = clean_border_pixels((y>0).long(), gap=gap)
+            vertices_mc, faces_mc = voxel2mesh(y_, gap, shape)
         vertices_mc_all += [vertices_mc]
         faces_mc_all += [faces_mc]
        
@@ -152,7 +160,7 @@ def sample_to_sample_plus(samples, cfg, datamode):
         x = sample.x
         y = sample.y 
 
-        y = (y>0).long()
+        #y = (y>0).long()
 
         center = tuple([d // 2 for d in x.shape]) 
         x = crop(x, cfg.patch_shape, center) 

@@ -52,6 +52,7 @@ class LIDCDataset():
 
     def __getitem__(self, idx):
         item = self.data[idx] 
+        #print(self.pids[idx])
         item = get_item(item, self.mode, self.cfg) 
         item['pid'] = self.pids[idx]
         return item
@@ -99,7 +100,17 @@ class LIDC():
                 pids += [pid]
                 x = torch.from_numpy(np.load(sample)[0])
                 inputs += [x]
-                y = torch.from_numpy(np.load(sample.replace("0.npy", "2.npy"))[0])
+                y = torch.from_numpy(np.load(sample.replace("0.npy", "seg.npy"))) # peak segmenation with nodule area
+                y1 = torch.from_numpy(np.load(sample.replace("0.npy", "1.npy"))[0]) # area distortion map
+                y2 = torch.from_numpy(np.load(sample.replace("0.npy", "2.npy"))[0]) # nodule segmentation
+                y = ((y == 2) | (y == 3)) & (y1 <= 0) # peaks
+                y = 2*y2 - y.type(torch.uint8) # apply nodule mask
+                
+                #y[y==1] = 5 # nodule
+                #y[y==2] = 1 # spiculation
+                #y[y==3] = 1 # lobulation
+                #y[y==4] = 2 # attachment
+                #y[y>=5] = 2 # others
                 labels += [y]
 
         print('\nSaving pre-processed data to disk')
@@ -137,7 +148,6 @@ class LIDC():
     def evaluate(self, target, pred, cfg):
         results = {}
 
-
         if target.voxel is not None: 
             val_jaccard = jaccard_index(target.voxel, pred.voxel, cfg.num_classes)
             results['jaccard'] = val_jaccard
@@ -148,7 +158,11 @@ class LIDC():
             val_chamfer_weighted_symmetric = np.zeros(len(target_points))
 
             for i in range(len(target_points)):
-                val_chamfer_weighted_symmetric[i] = chamfer_weighted_symmetric(target_points[i].cpu(), pred_points[i]['vertices'])
+                if target_points[i].size()[1] == 0:
+                    val_chamfer_weighted_symmetric[i] = 0
+                else:
+                    val_chamfer_weighted_symmetric[i] = chamfer_weighted_symmetric(target_points[i].cpu(), pred_points[i]['vertices'])
+
 
             results['chamfer_weighted_symmetric'] = val_chamfer_weighted_symmetric
 

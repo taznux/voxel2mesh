@@ -70,7 +70,7 @@ def load_config(exp_id):
     cfg.batch_size = 1
 
 
-    cfg.num_classes = 2
+    cfg.num_classes = 3
     cfg.batch_norm = True  
     cfg.graph_conv_layer_count = 4
 

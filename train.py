@@ -63,14 +63,15 @@ class Trainer(object):
                     for key, value in loss.items():
                         log_vals[key] = value / print_every 
                     log_vals['iteration'] = iteration 
+
+                wandb.log(log_vals)
  
   
 
                 iteration = iteration + 1 
 
                 if iteration % self.eval_every == self.eval_every-1:  # print every K epochs
-                    self.evaluator.evaluate(iteration)
-
+                    self.evaluator.evaluate(int((iteration+1)/self.eval_every))
                 if iteration > self.numb_of_itrs:
                     break
    

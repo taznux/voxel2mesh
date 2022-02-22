@@ -25,7 +25,7 @@ from utils.utils_unet import UNetLayer
 from utils.angle_distortions import angle_distortions
 from utils.area_distortions import area_distortions
 
-
+import wandb
   
  
  
@@ -204,32 +204,33 @@ class Voxel2Mesh(nn.Module):
         return pred
 
 
-    def loss(self, data, epoch):
-
-         
+    def loss(self, data, epoch):     
         pred = self.forward(data)  
         # embed()
-        
-
-         
-        CE_Loss = nn.CrossEntropyLoss() 
-        ce_loss = CE_Loss(pred[0][-1][3], data['y_voxels'])
-
-
+    
+        ce_loss = torch.tensor(0).float().cuda()
         chamfer_loss = torch.tensor(0).float().cuda()
         edge_loss = torch.tensor(0).float().cuda()
         laplacian_loss = torch.tensor(0).float().cuda()
         normal_consistency_loss = torch.tensor(0).float().cuda()  
         angle_distortion_loss = torch.tensor(0).float().cuda()  
+        area_distortion_loss = torch.tensor(0).float().cuda()  
 
         for c in range(self.config.num_classes-1):
+            CE_Loss = nn.CrossEntropyLoss() 
+            ce_loss += CE_Loss(pred[c][-1][3], (data['y_voxels']>=c+1).long())
+
             target = data['surface_points'][c].cuda() 
+            #print(target.size())
+            if target.size()[1] == 0:
+                continue
             for k, (vertices, faces, _, _, sphere_vertices) in enumerate(pred[c][1:]):
-      
                 pred_mesh = Meshes(verts=list(vertices), faces=list(faces))
                 sphere_mesh = Meshes(verts=list(sphere_vertices), faces=list(faces))
                 angle_d = angle_distortions(pred_mesh, sphere_mesh)
+                area_d = area_distortions(pred_mesh, sphere_mesh)
                 angle_distortion_loss += (angle_d**2).mean()
+                area_distortion_loss += (1/(area_d**2+1)).mean()
 
                 pred_points = sample_points_from_meshes(pred_mesh, 3000)
                 
@@ -241,15 +242,21 @@ class Voxel2Mesh(nn.Module):
         
         
  
-        loss = 0.1 * angle_distortion_loss + 1 * chamfer_loss + 1 * ce_loss + 0.01 * laplacian_loss + 1 * edge_loss + 0.01 * normal_consistency_loss
+        loss = 1 * chamfer_loss + 1 * ce_loss \
+            + 0.01 * laplacian_loss + 0.1 * edge_loss + 0.01 * normal_consistency_loss \
+            #+ 0.001 * angle_distortion_loss #+ 0.01 * area_distortion_loss
 
  
-        log = {"loss": loss.detach(),
-               "chamfer_loss": chamfer_loss.detach(), 
-               "ce_loss": ce_loss.detach(),
-               "normal_consistency_loss": normal_consistency_loss.detach(),
-               "edge_loss": edge_loss.detach(),
-               "laplacian_loss": laplacian_loss.detach()}
+        log = {
+            "loss": loss.detach(),
+            "chamfer_loss": chamfer_loss.detach(), 
+            "ce_loss": ce_loss.detach(),
+            "normal_consistency_loss": normal_consistency_loss.detach(),
+            "edge_loss": edge_loss.detach(),
+            "laplacian_loss": laplacian_loss.detach(),
+            "angle_distortion_loss": angle_distortion_loss.detach(),
+            "area_distortion_loss": area_distortion_loss.detach(),
+        }
         return loss, log
 
 

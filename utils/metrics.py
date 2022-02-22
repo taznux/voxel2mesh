@@ -19,8 +19,8 @@ def jaccard_index(target, pred, num_classes):
 
     # Ignore IoU for background class ("0")
     for cls in range(1, num_classes):  # This goes from 1:n_classes-1 -> class "0" is ignored
-        pred_inds = pred == cls
-        target_inds = target == cls
+        pred_inds = pred >= cls
+        target_inds = target >= cls
 
         intersection = pred_inds[target_inds].long().sum().data.cpu()  # Cast to long to prevent overflows
         union = pred_inds.long().sum().data.cpu() + target_inds.long().sum().data.cpu() - intersection

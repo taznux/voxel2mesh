@@ -139,7 +139,7 @@ class Evaluator(object):
                 rasterizer = Rasterize(shape)
                 pred_voxels_rasterized = rasterizer(pred_vertices, pred_faces).long()
                  
-                pred_voxels[pred_voxels_rasterized==1] = c + 1
+                pred_voxels += pred_voxels_rasterized 
 
             true_voxels = data['y_voxels'].data.cpu() 
  

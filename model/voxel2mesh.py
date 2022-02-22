@@ -189,16 +189,36 @@ class Voxel2Mesh(nn.Module):
                 latent_features = graph_unet_layer(latent_features, A, D, vertices, faces)
                 deltaV = feature2vertex(latent_features, A, D, vertices, faces)
                 vertices = vertices + deltaV 
-                
-                if do_unpool[0] == 1:
-                    # Discard the vertices that were introduced from the uniform unpool and didn't deform much
-                    vertices, faces, latent_features, sphere_vertices = adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev)
 
                 voxel_pred = self.final_layer(x) if i == len(self.up_std_conv_layers)-1 else None
                 nodule_idx = self.config.num_classes-2 # last class
                 if k < nodule_idx and (voxel_pred is not None) and (pred[nodule_idx][-1][3] is not None):
                     voxel_pred = torch.max(pred[nodule_idx][-1][3], voxel_pred) # merge nodule base
                 pred[k] += [[vertices, faces, latent_features, voxel_pred, sphere_vertices]]
+            
+            # keep the same mesh after selection
+            if do_unpool[0] == 1:
+                # load mesh information from previous iteration for class 0 peak
+                faces_prev = pred[0][i][1]
+                _, N_prev, _ = pred[0][i][0].shape 
+                # load mesh information from current iteration for class 0 peak
+                vertices = pred[0][i+1][0]
+                faces = pred[0][i+1][1]
+                latent_features = pred[0][i+1][2]
+                sphere_vertices = pred[0][i+1][4]
+
+                # Discard the vertices that were introduced from the uniform unpool and didn't deform much
+                vertices, faces, latent_features, sphere_vertices, selected = adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev)
+                pred[0][i+1][0] = vertices
+                pred[0][i+1][1] = faces
+                pred[0][i+1][2] = latent_features
+                pred[0][i+1][4] = sphere_vertices
+
+                pred[1][i+1][0] = (pred[1][i+1][0][0,selected,:])[None]
+                pred[1][i+1][1] = faces
+                pred[1][i+1][2] = (pred[1][i+1][2][0,selected,:])[None]
+                pred[1][i+1][4] = sphere_vertices
+
  
         return pred
 

@@ -99,6 +99,7 @@ def adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
 
     sorted_, _ = torch.sort(dist)
     threshold = sorted_[int(0.3*len(sorted_))] 
+    selected = torch.cat([torch.arange(N_prev).cuda(), (dist > threshold).nonzero()[:,0]+N_prev])
 
     vertices_needed = vertices_secondary[dist > threshold]
     
@@ -147,5 +148,5 @@ def adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
     faces = faces[None]
     
 
-    return vertices, faces, latent_features, sphere_vertices
+    return vertices, faces, latent_features, sphere_vertices, selected
 

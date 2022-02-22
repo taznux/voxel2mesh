@@ -236,7 +236,7 @@ class Evaluator(object):
 
             overlay_y_hat = blend_cpu(xs, y_hats_voxels, self.config.num_classes)
             overlay_y = blend_cpu(xs, ys_voxels, self.config.num_classes)
-            overlay_overlap = blend_cpu(xs, y_overlap, 7)
+            overlay_overlap = blend_cpu(xs, y_overlap, 6)
             overlay = np.concatenate([overlay_y, overlay_y_hat, overlay_overlap], axis=2)
             io.imsave(save_path + mode + 'overlay_y_hat.tif', overlay)
             

@@ -148,9 +148,9 @@ class Voxel2Mesh(nn.Module):
                 x = down_output
           
 
-            for k in range(self.config.num_classes-1):
+            for k in range(self.config.num_classes-1)[::-1]: # reverse
 
-            	# load mesh information from previous iteratioin for class k
+            	# load mesh information from previous iteration for class k
                 vertices = pred[k][i][0]
                 faces = pred[k][i][1]
                 latent_features = pred[k][i][2]
@@ -194,11 +194,10 @@ class Voxel2Mesh(nn.Module):
                     # Discard the vertices that were introduced from the uniform unpool and didn't deform much
                     vertices, faces, latent_features, sphere_vertices = adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev)
 
-                
-
                 voxel_pred = self.final_layer(x) if i == len(self.up_std_conv_layers)-1 else None
-
-
+                nodule_idx = self.config.num_classes-2 # last class
+                if k < nodule_idx and (voxel_pred is not None) and (pred[nodule_idx][-1][3] is not None):
+                    voxel_pred = torch.max(pred[nodule_idx][-1][3], voxel_pred) # merge nodule base
                 pred[k] += [[vertices, faces, latent_features, voxel_pred, sphere_vertices]]
  
         return pred
@@ -243,7 +242,7 @@ class Voxel2Mesh(nn.Module):
         
  
         loss = 1 * chamfer_loss + 1 * ce_loss \
-            + 0.01 * laplacian_loss + 0.1 * edge_loss + 0.01 * normal_consistency_loss \
+            + 0.1 * laplacian_loss + 1 * edge_loss + 0.1 * normal_consistency_loss \
             #+ 0.001 * angle_distortion_loss #+ 0.01 * area_distortion_loss
 
  

@@ -19,7 +19,7 @@ from utils.utils_voxel2mesh.feature_sampling import LearntNeighbourhoodSampling
 from utils.utils_voxel2mesh.file_handle import read_obj 
 
 
-from utils.utils_voxel2mesh.unpooling import uniform_unpool, adoptive_unpool
+from utils.utils_voxel2mesh.unpooling import uniform_unpool, adaptive_unpool
 
 from utils.utils_unet import UNetLayer
 from utils.angle_distortions import angle_distortions
@@ -149,16 +149,26 @@ class Voxel2Mesh(nn.Module):
           
 
             for k in range(self.config.num_classes-1)[::-1]: # reverse
-
-            	# load mesh information from previous iteration for class k
-                vertices = pred[k][i][0]
-                faces = pred[k][i][1]
-                latent_features = pred[k][i][2]
-                sphere_vertices = pred[k][i][4]
+                nodule_idx = self.config.num_classes-2
                 graph_unet_layer = up_f2f_layers[k]
                 feature2vertex = up_f2v_layers[k]
+                if k == nodule_idx:
+                    # load mesh information from previous iteration for class k
+                    vertices = pred[k][i][0]
+                    faces = pred[k][i][1]
+                    latent_features = pred[k][i][2]
+                    sphere_vertices = pred[k][i][4]
+                else:
+                    # load mesh information from current iteration for class nodule
+                    vertices = pred[nodule_idx][i+1][0].clone()
+                    faces = pred[nodule_idx][i+1][1].clone()
+                    if i == 0:
+                        latent_features = None
+                    else:
+                        latent_features = pred[nodule_idx][i+1][2].clone()
+                    sphere_vertices = pred[nodule_idx][i+1][4].clone()
  
-                if do_unpool[0] == 1:
+                if do_unpool[0] == 1 and k == nodule_idx:
                     faces_prev = faces
                     _, N_prev, _ = vertices.shape 
 
@@ -191,7 +201,6 @@ class Voxel2Mesh(nn.Module):
                 vertices = vertices + deltaV 
 
                 voxel_pred = self.final_layer(x) if i == len(self.up_std_conv_layers)-1 else None
-                nodule_idx = self.config.num_classes-2 # last class
                 if k < nodule_idx and (voxel_pred is not None) and (pred[nodule_idx][-1][3] is not None):
                     voxel_pred = torch.max(pred[nodule_idx][-1][3], voxel_pred) # merge nodule base
                 pred[k] += [[vertices, faces, latent_features, voxel_pred, sphere_vertices]]
@@ -208,7 +217,7 @@ class Voxel2Mesh(nn.Module):
                 sphere_vertices = pred[0][i+1][4]
 
                 # Discard the vertices that were introduced from the uniform unpool and didn't deform much
-                vertices, faces, latent_features, sphere_vertices, selected = adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev)
+                vertices, faces, latent_features, sphere_vertices, selected = adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev)
                 pred[0][i+1][0] = vertices
                 pred[0][i+1][1] = faces
                 pred[0][i+1][2] = latent_features

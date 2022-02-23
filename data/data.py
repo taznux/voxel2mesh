@@ -109,7 +109,7 @@ def get_item(item, mode, config):
         faces_mc_all += [faces_mc]
        
      
-        y_outer = sample_outer_surface_in_voxel((y==i).long()) 
+        y_outer = sample_outer_surface_in_voxel((y>=i).long()) 
         surface_points = torch.nonzero(y_outer)
         surface_points = torch.flip(surface_points, dims=[1]).float()  # convert z,y,x -> x, y, z
         surface_points_normalized = normalize_vertices(surface_points, shape) 

@@ -58,7 +58,7 @@ def uniform_unpool(vertices_, faces_, identical_face_batch=True, new_faces=True)
     return new_vertices_all, new_faces_all
 
 
-def adoptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev):
+def adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev):
     vertices_primary = vertices[0,:N_prev, :]
     vertices_secondary = vertices[0,N_prev:, :]
     faces_primary = faces_prev[0]

@@ -60,7 +60,7 @@ class Evaluator(object):
 
 
     def evaluate(self, epoch, writer=None, backup_writer=None):
-        # self.net = self.net.eval()
+        self.net = self.net.eval()
         performences = {}
         predictions = {}
 
@@ -83,7 +83,7 @@ class Evaluator(object):
 
 
     def evaluate_all(self, epoch, writer=None, backup_writer=None):
-        # self.net = self.net.eval()
+        self.net = self.net.eval()
         performences = {}
         predictions = {}
 

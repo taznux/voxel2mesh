@@ -51,7 +51,7 @@ def init(cfg):
 
 
 def main():
-    exp_id = 1
+    exp_id = 3
 
     # Initialize
     cfg = load_config(exp_id)
@@ -76,10 +76,13 @@ def main():
   
     print("Load pre-processed data") 
     data_obj = cfg.data_obj 
+    data_obj_ext = cfg.data_obj_ext 
     data = data_obj.quick_load_data(cfg, trial_id)
+    data_ext = data_obj_ext.quick_load_data(cfg, trial_id)
     
     print("Initialize evaluator")
     evaluator = Evaluator(classifier, optimizer, data, trial_path, cfg, data_obj) 
+    evaluator_ext = Evaluator(classifier, optimizer, data_ext, trial_path, cfg, data_obj_ext) 
 
     print("Loading pretrained network")
     save_path = trial_path + '/best_performance/model.pth'
@@ -89,6 +92,7 @@ def main():
     epoch = checkpoint['epoch']
 
     evaluator.evaluate_all(epoch)
+    evaluator_ext.evaluate_all(epoch)
 
 if __name__ == "__main__": 
     main()

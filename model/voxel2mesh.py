@@ -19,15 +19,44 @@ from utils.utils_voxel2mesh.feature_sampling import LearntNeighbourhoodSampling
 from utils.utils_voxel2mesh.file_handle import read_obj 
 
 
-from utils.utils_voxel2mesh.unpooling import uniform_unpool, adaptive_unpool
-
 from utils.utils_unet import UNetLayer
 from utils.angle_distortions import angle_distortions
 from utils.area_distortions import area_distortions
 
 import wandb
   
- 
+def deformation_dist(vertices, faces_prev, N_prev):
+    vertices_primary = vertices[0,:N_prev, :]
+    vertices_secondary = vertices[0,N_prev:, :]
+    faces_primary = faces_prev[0]
+    
+    edge_combinations_3 = torch.tensor(list(combinations(range(3), 2))).cuda()
+    edges = faces_primary[:, edge_combinations_3]
+    unique_edges = edges.view(-1, 2)
+    unique_edges, _ = torch.sort(unique_edges, dim=1)
+    unique_edges, _ = torch.unique(unique_edges, return_inverse=True, dim=0)
+    face_edges_primary = vertices_primary[unique_edges]
+
+    a = face_edges_primary[:,0]
+    b = face_edges_primary[:,1]
+    v = vertices_secondary
+
+    va = v - a
+    vb = v - b
+    ba = b - a
+
+    cond1 = (va * ba).sum(1)
+    norm1 = torch.norm(va, dim=1)
+
+    cond2 = (vb * ba).sum(1)
+    norm2 = torch.norm(vb, dim=1)
+
+    dist = torch.norm(torch.cross(va, ba), dim=1)/torch.norm(ba, dim=1)
+    dist[cond1 < 0] = norm1[cond1 < 0]
+    dist[cond2 < 0] = norm2[cond2 < 0]
+
+    return dist
+
  
 class Voxel2Mesh(nn.Module):
     """ Voxel2Mesh  """
@@ -55,10 +84,10 @@ class Voxel2Mesh(nn.Module):
 
         ''' Up layers ''' 
         self.skip_count = []
-        self.latent_features_coount = []
+        self.latent_features_count = []
         for i in range(config.steps+1):
             self.skip_count += [config.first_layer_channels * 2 ** (config.steps-i)] 
-            self.latent_features_coount += [32]
+            self.latent_features_count += [32]
 
         dim = 3
 
@@ -74,16 +103,16 @@ class Voxel2Mesh(nn.Module):
                 grid_upconv_layer = None
                 grid_unet_layer = None
                 for k in range(config.num_classes-1):
-                    graph_unet_layers += [Features2Features(self.skip_count[i] + dim, self.latent_features_coount[i], hidden_layer_count=config.graph_conv_layer_count)] # , graph_conv=GraphConv
+                    graph_unet_layers += [Features2Features(self.skip_count[i] + dim, self.latent_features_count[i], hidden_layer_count=config.graph_conv_layer_count)] # , graph_conv=GraphConv
 
             else:
                 grid_upconv_layer = ConvTransposeLayer(in_channels=config.first_layer_channels   * 2**(config.steps - i+1), out_channels=config.first_layer_channels * 2**(config.steps-i), kernel_size=2, stride=2)
                 grid_unet_layer = UNetLayer(config.first_layer_channels * 2**(config.steps - i + 1), config.first_layer_channels * 2**(config.steps-i), config.ndims, config.batch_norm)
                 for k in range(config.num_classes-1):
-                    graph_unet_layers += [Features2Features(self.skip_count[i] + self.latent_features_coount[i-1] + dim, self.latent_features_coount[i], hidden_layer_count=config.graph_conv_layer_count)] #, graph_conv=GraphConv if i < config.steps else GraphConvNoNeighbours
+                    graph_unet_layers += [Features2Features(self.skip_count[i] + self.latent_features_count[i-1] + dim, self.latent_features_count[i], hidden_layer_count=config.graph_conv_layer_count)] #, graph_conv=GraphConv if i < config.steps else GraphConvNoNeighbours
 
             for k in range(config.num_classes-1):
-                feature2vertex_layers += [Feature2VertexLayer(self.latent_features_coount[i], 3)] 
+                feature2vertex_layers += [Feature2VertexLayer(self.latent_features_count[i], 3)] 
  
 
             up_std_conv_layers.append((skip, grid_upconv_layer, grid_unet_layer))
@@ -169,10 +198,6 @@ class Voxel2Mesh(nn.Module):
                     sphere_vertices = pred[nodule_idx][i+1][4].clone()
  
                 if do_unpool[0] == 1 and k == nodule_idx:
-                    faces_prev = faces
-                    _, N_prev, _ = vertices.shape 
-
-                    #print(vertices.shape, faces.shape, sphere_vertices.shape, latent_features.shape)
                     # Get candidate vertices using uniform unpool
                     mesh = Meshes(verts=list(vertices), faces=list(faces))
                     
@@ -180,15 +205,11 @@ class Voxel2Mesh(nn.Module):
 
                     subdivide = SubdivideMeshes()
                     mesh, vert_feats = subdivide(mesh, feats=vert_feats)
+             
                     vertices = mesh.verts_list()[0][None]
                     faces = mesh.faces_list()[0][None]
                     sphere_vertices = vert_feats[:,:3][None]
                     latent_features = vert_feats[:,3:][None]
-                    #print(vertices.shape, faces.shape, sphere_vertices.shape, latent_features.shape)
-                    #vertices, faces_ = uniform_unpool(vertices, faces)  
-                    #latent_features, _ = uniform_unpool(latent_features, faces, True, False)  
-                    #sphere_vertices, _ = uniform_unpool(sphere_vertices, faces, True, False) 
-                    #faces = faces_  
 
                 
                 A, D = adjacency_matrix(vertices, faces)
@@ -201,8 +222,8 @@ class Voxel2Mesh(nn.Module):
                 vertices = vertices + deltaV 
 
                 voxel_pred = self.final_layer(x) if i == len(self.up_std_conv_layers)-1 else None
-                if k < nodule_idx and (voxel_pred is not None) and (pred[nodule_idx][-1][3] is not None):
-                    voxel_pred = torch.max(pred[nodule_idx][-1][3], voxel_pred) # merge nodule base
+                #if k < nodule_idx and (voxel_pred is not None) and (pred[nodule_idx][-1][3] is not None):
+                #    voxel_pred = torch.max(pred[nodule_idx][-1][3], voxel_pred) # merge nodule base
                 pred[k] += [[vertices, faces, latent_features, voxel_pred, sphere_vertices]]
             
             # keep the same mesh after selection
@@ -210,24 +231,33 @@ class Voxel2Mesh(nn.Module):
                 # load mesh information from previous iteration for class 0 peak
                 faces_prev = pred[0][i][1]
                 _, N_prev, _ = pred[0][i][0].shape 
-                # load mesh information from current iteration for class 0 peak
-                vertices = pred[0][i+1][0]
-                faces = pred[0][i+1][1]
-                latent_features = pred[0][i+1][2]
-                sphere_vertices = pred[0][i+1][4]
 
+                dist = [None] * (self.config.num_classes-1) 
                 # Discard the vertices that were introduced from the uniform unpool and didn't deform much
-                vertices, faces, latent_features, sphere_vertices, selected = adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_prev)
-                pred[0][i+1][0] = vertices
-                pred[0][i+1][1] = faces
-                pred[0][i+1][2] = latent_features
-                pred[0][i+1][4] = sphere_vertices
+                for k in range(self.config.num_classes-1):
+                    # load mesh information from current iteration for all classes
+                    vertices = pred[k][i+1][0]
+                    dist[k] = deformation_dist(vertices, faces_prev, N_prev)
 
-                pred[1][i+1][0] = (pred[1][i+1][0][0,selected,:])[None]
-                pred[1][i+1][1] = faces
-                pred[1][i+1][2] = (pred[1][i+1][2][0,selected,:])[None]
-                pred[1][i+1][4] = sphere_vertices
+                dist = torch.max(torch.vstack(dist), 0).values
+                sorted_, _ = torch.sort(dist)
+                threshold = sorted_[int(0.3*len(sorted_))] 
+                selected = torch.cat([torch.arange(N_prev).cuda(), (dist > threshold).nonzero()[:,0]+N_prev])
 
+                sphere_vertices = sphere_vertices[0, selected]
+                sphere_vertices = sphere_vertices/torch.sqrt(torch.sum(sphere_vertices**2,dim=1)[:,None])
+                hull = ConvexHull(sphere_vertices.data.cpu().numpy())  
+                faces = torch.from_numpy(hull.simplices).long().cuda()
+                sphere_vertices = sphere_vertices[None]
+                faces = faces[None]
+
+                for k in range(self.config.num_classes-1):
+                    vertices = pred[k][i+1][0][:,selected]
+                    latent_features = pred[k][i+1][2][:,selected]
+                    pred[k][i+1][0] = vertices
+                    pred[k][i+1][1] = faces
+                    pred[k][i+1][2] = latent_features
+                    pred[k][i+1][4] = sphere_vertices
  
         return pred
 
@@ -263,9 +293,10 @@ class Voxel2Mesh(nn.Module):
                 pred_points = sample_points_from_meshes(pred_mesh, 3000)
                 
                 chamfer_loss +=  chamfer_distance(pred_points, target)[0]
-                laplacian_loss +=   mesh_laplacian_smoothing(pred_mesh, method="uniform")
-                normal_consistency_loss += mesh_normal_consistency(pred_mesh) 
-                edge_loss += mesh_edge_loss(pred_mesh) 
+                if c == self.config.num_classes-2: #base nodule
+                    laplacian_loss +=   mesh_laplacian_smoothing(pred_mesh, method="uniform")
+                    normal_consistency_loss += mesh_normal_consistency(pred_mesh) 
+                    edge_loss += mesh_edge_loss(pred_mesh) 
 
         
         

@@ -25,19 +25,17 @@ from model.voxel2mesh import Voxel2Mesh as network
 
  
 def main():
- 
-     
-
     # Initialize
     cfg = load_config(None)
  
   
     print("Pre-process data") 
     data_obj = cfg.data_obj  
+    data_obj_ext = cfg.data_obj_ext
 
     # Run pre-processing
     data = data_obj.pre_process_dataset(cfg)
-  
+    data_ext = data_obj_ext.pre_process_dataset(cfg)
 
 if __name__ == "__main__": 
     main()

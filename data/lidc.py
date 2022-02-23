@@ -103,8 +103,8 @@ class LIDC():
                 y = torch.from_numpy(np.load(sample.replace("0.npy", "seg.npy"))) # peak segmenation with nodule area
                 y1 = torch.from_numpy(np.load(sample.replace("0.npy", "1.npy"))[0]) # area distortion map
                 y2 = torch.from_numpy(np.load(sample.replace("0.npy", "2.npy"))[0]) # nodule segmentation
-                y = ((y == 2) | (y == 3)) & (y1 <= 0) # peaks
-                y = 2*y2 - y.type(torch.uint8) # apply nodule mask
+                y = ((y == 2) + 2*(y == 3)) * (y1 <= 0) # peaks
+                y = 3*y2 - y.type(torch.uint8) # apply nodule mask
                 
                 #y[y==1] = 5 # nodule
                 #y[y==2] = 1 # spiculation

@@ -15,7 +15,7 @@ import trimesh
 from utils.rasterize.rasterize import Rasterize
 # from utils import stns
 
-from sklearn.metrics import confusion_matrix, roc_auc_score
+from sklearn.metrics import confusion_matrix, roc_curve, auc
  
 
 class Structure(object):
@@ -108,52 +108,54 @@ class Evaluator(object):
     def predict(self, data, config):
         name = config.name
         if name == 'unet':
-            y_hat = self.net(data)
-            y_hat = torch.argmax(y_hat, dim=1).cpu()
+            with torch.no_grad():
+                y_hat = self.net(data)
+                y_hat = torch.argmax(y_hat, dim=1).cpu()
 
-            x = data['x'] 
-            y = Structure(voxel=data['y_voxels'].cpu())
-            y_hat = Structure(voxel=y_hat)
+                x = data['x'] 
+                y = Structure(voxel=data['y_voxels'].cpu())
+                y_hat = Structure(voxel=y_hat)
 
         elif name == 'voxel2mesh':
             
             x = data['x']
-            pred, output = self.net(data) 
+            with torch.no_grad():
+                pred, output = self.net(data) 
 
-            pred_meshes = []
-            sphr_meshes = []
-            true_meshes = []
-            true_points = []
-            pred_voxels = torch.zeros_like(x)[:,0].long()
-            # embed()
-            for c in range(self.config.num_classes-1):  
+                pred_meshes = []
+                sphr_meshes = []
+                true_meshes = []
+                true_points = []
+                pred_voxels = torch.zeros_like(x)[:,0].detach().long()
                 # embed()
+                for c in range(self.config.num_classes-1):  
+                    # embed()
 
-                pred_vertices = pred[c][-1][0].detach().data.cpu()
-                pred_faces = pred[c][-1][1].detach().data.cpu()
-                sphr_vertices = pred[c][-1][4].detach().data.cpu()
-                true_vertices = data['vertices_mc'][c].data.cpu()
-                true_faces = data['faces_mc'][c].data.cpu()
+                    pred_vertices = pred[c][-1][0].detach().data.cpu()
+                    pred_faces = pred[c][-1][1].detach().data.cpu()
+                    sphr_vertices = pred[c][-1][4].detach().data.cpu()
+                    true_vertices = data['vertices_mc'][c].data.cpu()
+                    true_faces = data['faces_mc'][c].data.cpu()
 
-                pred_meshes += [{'vertices': pred_vertices, 'faces':pred_faces, 'normals':None}] 
-                sphr_meshes += [{'vertices': sphr_vertices, 'faces':pred_faces, 'normals':None}] 
-                true_meshes += [{'vertices': true_vertices, 'faces':true_faces, 'normals':None}] 
-                true_points += [data['surface_points'][c].data.cpu()]
+                    pred_meshes += [{'vertices': pred_vertices, 'faces':pred_faces, 'normals':None}] 
+                    sphr_meshes += [{'vertices': sphr_vertices, 'faces':pred_faces, 'normals':None}] 
+                    true_meshes += [{'vertices': true_vertices, 'faces':true_faces, 'normals':None}] 
+                    true_points += [data['surface_points'][c].data.cpu()]
 
-                _, _, D, H, W = x.shape
-                shape = torch.tensor([D,H,W]).int().cuda(config.device)
-                rasterizer = Rasterize(shape)
-                pred_voxels_rasterized = rasterizer(pred_vertices, pred_faces).long()
-                 
-                pred_voxels += pred_voxels_rasterized
+                    _, _, D, H, W = x.shape
+                    shape = torch.tensor([D,H,W]).int().cuda(config.device)
+                    rasterizer = Rasterize(shape)
+                    pred_voxels_rasterized = rasterizer(pred_vertices, pred_faces).long()
+                    
+                    pred_voxels += pred_voxels_rasterized
 
-            true_voxels = data['y_voxels'].data.cpu() 
- 
+                true_voxels = data['y_voxels'].data.cpu() 
+    
 
-            x = x.detach().data.cpu()  
-            target = data['metadata']['Malignancy']>3
-            y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points, malignant=target[0])
-            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes, malignant=output[1])
+                x = x.detach().data.cpu()  
+                target = data['metadata']['Malignancy']>3
+                y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points, malignant=target[0])
+                y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes, malignant=output[1])
 
         x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
         return x, y, y_hat
@@ -181,8 +183,10 @@ class Evaluator(object):
  
         labels = np.asarray(labels)
         preds = np.asarray(preds)
-        auc = roc_auc_score(labels, preds)
-        CM = confusion_matrix(labels, preds>0.5, labels=[0,1], sample_weight=[0.1, 1])
+        fpr, tpr, thresholds = roc_curve(labels, preds, pos_label=1)
+        t = thresholds[np.sqrt((1-fpr)**2+tpr**2).argmax()]
+        auc_ = auc(fpr, tpr)
+        CM = confusion_matrix(labels, preds>t, labels=[0,1])
         tn=CM[0][0]
         tp=CM[1][1]
         fp=CM[0][1]
@@ -192,11 +196,13 @@ class Evaluator(object):
         specificity=tn/(tn+fp)
         precision=tp/(tp+fp)
 
+        performance['auc'] = auc_
         performance['accuracy'] = acc
         performance['sensitivity'] = sensitivity if sensitivity is not None else 0
         performance['specificity'] = specificity if specificity is not None else 0
         
         print('\nTestset Accuracy(mean): %f %%' % (100 * acc))
+        print('\nTestset AUC: %f' % auc_)
         print()
         print('Confusion Matirx : ')
         print(CM)

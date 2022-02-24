@@ -129,7 +129,7 @@ class Voxel2Mesh(nn.Module):
         self.decoder_f2f = nn.Sequential(*chain(*up_f2f_layers))
         self.decoder_f2v = nn.Sequential(*chain(*up_f2v_layers))
 
-        self.fc1 = nn.Linear(351648, 4096)
+        self.fc1 = nn.Linear(3500*32*3, 4096)
         self.fc2 = nn.Linear(4096, 128)
         self.fc3 = nn.Linear(128, 2)
 
@@ -265,7 +265,7 @@ class Voxel2Mesh(nn.Module):
             vertices = pred[k][i+1][0]
             faces = pred[k][i+1][1]
             latent_features = pred[k][i+1][2]
-            features.append(latent_features)
+            features.append(latent_features[:, 0:3500])
         x = torch.concat(features,2).flatten()
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))

@@ -77,7 +77,7 @@ def transform(theta, x, y=None, w=None, w2=None):
     theta = theta[0:3, :].view(-1, 3, 4)
     grid = affine_3d_grid_generator.affine_grid(theta, x[None].shape)
     if x.device.type == 'cuda':
-        grid = grid.cuda()
+        grid = grid.cuda(x.device)
     x = F.grid_sample(x[None], grid, mode='bilinear', padding_mode='zeros', align_corners=True)[0]
     if y is not None:
         y = F.grid_sample(y[None, None].float(), grid, mode='nearest', padding_mode='zeros', align_corners=True).long()[0, 0]

@@ -1,3 +1,4 @@
+from cProfile import label
 from utils.utils_common import DataModes, mkdir, blend, crop_indices, blend_cpu, append_line, write_lines 
 from utils.utils_voxel2mesh.file_handle import save_to_obj  
 from torch.utils.data import DataLoader
@@ -14,23 +15,27 @@ import trimesh
 from utils.rasterize.rasterize import Rasterize
 # from utils import stns
 
-
+from sklearn.metrics import confusion_matrix
  
 
 class Structure(object):
 
-    def __init__(self, voxel=None, mesh=None, points=None, sphr_mesh=None):
+    def __init__(self, voxel=None, mesh=None, points=None, sphr_mesh=None, malignant=None):
         self.voxel = voxel 
         self.mesh = mesh   
         self.sphr_mesh = sphr_mesh   
         self.points = points
+        self.malignant = malignant
  
 def write_to_wandb(writer, epoch, split, performences, num_classes): 
     log_vals = {"epoch":epoch}
     for key, value in performences[split].items():
         log_vals[split + '_' + key + '/mean'] = np.nanmean(performences[split][key]) 
-        for i in range(1, num_classes):
-            log_vals[split + '_' + key + '/class_' + str(i)] = np.nanmean(performences[split][key][:, i - 1]) 
+        try:
+            for i in range(1, num_classes):
+                log_vals[split + '_' + key + '/class_' + str(i)] = np.nanmean(performences[split][key][:, i - 1]) 
+        except:
+            print('')
     try:
         wandb.log(log_vals)
     except:
@@ -140,28 +145,32 @@ class Evaluator(object):
                 rasterizer = Rasterize(shape)
                 pred_voxels_rasterized = rasterizer(pred_vertices, pred_faces).long()
                  
-                pred_voxels += pred_voxels_rasterized.cpu()
+                pred_voxels += pred_voxels_rasterized
 
             true_voxels = data['y_voxels'].data.cpu() 
  
 
             x = x.detach().data.cpu()  
-            y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points)
-            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes)
- 
+            target = data['metadata']['Malignancy']>3
+            y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points, malignant=target[0])
+            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes, malignant=output[1]>0.5)
 
         x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
-        return x, y, y_hat, output
+        return x, y, y_hat
 
     def evaluate_set(self, dataloader):
         performance = {}
         predictions = [] 
   
+        labels = []
+        preds = []
         for i, data in enumerate(dataloader):
 
-            x, y, y_hat, output = self.predict(data, self.config)
+            x, y, y_hat = self.predict(data, self.config)
             result = self.support.evaluate(y, y_hat, self.config)
- 
+
+            labels.append(y.malignant.detach().cpu().numpy())
+            preds.append(y_hat.malignant.detach().cpu().numpy())
  
             predictions.append((x, y, y_hat))
 
@@ -170,7 +179,33 @@ class Evaluator(object):
                     performance[key] = []
                 performance[key].append(result[key]) 
  
+        labels = np.asarray(labels)
+        preds = np.asarray(preds)
+        CM = confusion_matrix(labels, preds, labels=[0,1])
+        tn=CM[0][0]
+        tp=CM[1][1]
+        fp=CM[0][1]
+        fn=CM[1][0]
+        acc=np.sum(np.diag(CM)/np.sum(CM))
+        sensitivity=tp/(tp+fn)
+        specificity=tn/(tn+fp)
+        precision=tp/(tp+fp)
 
+        performance['accuracy'] = acc
+        performance['sensitivity'] = sensitivity if sensitivity is not None else 0
+        performance['specificity'] = specificity if specificity is not None else 0
+        
+        print('\nTestset Accuracy(mean): %f %%' % (100 * acc))
+        print()
+        print('Confusion Matirx : ')
+        print(CM)
+        print('- Sensitivity : ',(tp/(tp+fn))*100)
+        print('- Specificity : ',(tn/(tn+fp))*100)
+        print('- Precision: ',(tp/(tp+fp))*100)
+        print('- NPV: ',(tn/(tn+fn))*100)
+        print('- F1 : ',((2*sensitivity*precision)/(sensitivity+precision))*100)
+        print()
+            
         for key, value in performance.items():
             performance[key] = np.array(performance[key])
         return performance, predictions

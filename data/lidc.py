@@ -1,3 +1,4 @@
+from cProfile import label
 from importlib_metadata import metadata
 import numpy as np
 from data.data import get_item, sample_to_sample_plus
@@ -85,7 +86,7 @@ class LIDC():
         for i, datamode in enumerate([DataModes.TRAINING, DataModes.VALIDATION, DataModes.TESTING]):
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'rb') as handle:
                 samples, sample_pids = pickle.load(handle)
-                samples, sample_pids  = samples[0:2], sample_pids[0:2]
+                #samples, sample_pids  = samples[0:10], sample_pids[0:10]
                 new_samples = sample_to_sample_plus(samples, cfg, datamode)
                 data[datamode] = LIDCDataset(new_samples, sample_pids, metadata, cfg, datamode) 
 

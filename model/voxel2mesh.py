@@ -129,8 +129,8 @@ class Voxel2Mesh(nn.Module):
         self.decoder_f2f = nn.Sequential(*chain(*up_f2f_layers))
         self.decoder_f2v = nn.Sequential(*chain(*up_f2v_layers))
 
-        self.fc1 = nn.Linear(3500*32*3, 4096)
-        self.fc2 = nn.Linear(4096, 128)
+        self.fc1 = nn.Linear(42*32*3, 512)
+        self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 2)
 
         ''' Final layer (for voxel decoder)'''
@@ -265,7 +265,7 @@ class Voxel2Mesh(nn.Module):
             vertices = pred[k][i+1][0]
             faces = pred[k][i+1][1]
             latent_features = pred[k][i+1][2]
-            features.append(latent_features[:, 0:3500])
+            features.append(latent_features[:, 0:42])
         x = torch.concat(features,2).flatten()
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -288,7 +288,7 @@ class Voxel2Mesh(nn.Module):
         area_distortion_loss = torch.tensor(0).float().cuda(self.config.device)  
 
         target = F.one_hot((data['metadata']['Malignancy']>3).long().cuda(self.config.device), 2)
-        loss = nn.BCELoss()
+        loss = nn.BCELoss(weight=torch.tensor([0.1, 1]).cuda(self.config.device)  )
         bce_loss += loss(output, target[0].float())
 
         for c in range(self.config.num_classes-1):

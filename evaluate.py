@@ -15,7 +15,7 @@ import trimesh
 from utils.rasterize.rasterize import Rasterize
 # from utils import stns
 
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, roc_auc_score
  
 
 class Structure(object):
@@ -153,7 +153,7 @@ class Evaluator(object):
             x = x.detach().data.cpu()  
             target = data['metadata']['Malignancy']>3
             y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points, malignant=target[0])
-            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes, malignant=output[1]>0.5)
+            y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes, malignant=output[1])
 
         x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
         return x, y, y_hat
@@ -181,7 +181,8 @@ class Evaluator(object):
  
         labels = np.asarray(labels)
         preds = np.asarray(preds)
-        CM = confusion_matrix(labels, preds, labels=[0,1])
+        auc = roc_auc_score(labels, preds)
+        CM = confusion_matrix(labels, preds>0.5, labels=[0,1], sample_weight=[0.1, 1])
         tn=CM[0][0]
         tp=CM[1][1]
         fp=CM[0][1]
@@ -246,13 +247,16 @@ class Evaluator(object):
      
         if performence is not None:
             for key, value in performence.items():
-                performence_mean = np.mean(performence[key], axis=0)
-                summary = ('{}: ' + ', '.join(['{:.8f}' for _ in range(self.config.num_classes-1)])).format(epoch, *performence_mean)
-                append_line(save_path + mode + 'summary' + key + '.txt', summary)
-                print(('{} {}: ' + ', '.join(['{:.8f}' for _ in range(self.config.num_classes-1)])).format(epoch, key, *performence_mean))
+                try:
+                    performence_mean = np.mean(performence[key], axis=0)
+                    summary = ('{}: ' + ', '.join(['{:.8f}' for _ in range(self.config.num_classes-1)])).format(epoch, *performence_mean)
+                    append_line(save_path + mode + 'summary' + key + '.txt', summary)
+                    print(('{} {}: ' + ', '.join(['{:.8f}' for _ in range(self.config.num_classes-1)])).format(epoch, key, *performence_mean))
 
-                all_results = [('{}: ' + ', '.join(['{:.8f}' for _ in range(self.config.num_classes-1)])).format(*((i+1,) + tuple(vals))) for i, vals in enumerate(performence[key])]
-                write_lines(save_path + mode + 'all_results_' + key + '.txt', all_results)
+                    all_results = [('{}: ' + ', '.join(['{:.8f}' for _ in range(self.config.num_classes-1)])).format(*((i+1,) + tuple(vals))) for i, vals in enumerate(performence[key])]
+                    write_lines(save_path + mode + 'all_results_' + key + '.txt', all_results)
+                except:
+                    print("")
  
          
         xs = torch.cat(xs, dim=0).cpu()

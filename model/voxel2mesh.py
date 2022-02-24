@@ -129,7 +129,7 @@ class Voxel2Mesh(nn.Module):
         self.decoder_f2f = nn.Sequential(*chain(*up_f2f_layers))
         self.decoder_f2v = nn.Sequential(*chain(*up_f2v_layers))
 
-        self.fc1 = nn.Linear(42*32*3, 512)
+        self.fc1 = nn.Linear(1000*32*3, 512)
         self.fc2 = nn.Linear(512, 128)
         self.fc3 = nn.Linear(128, 2)
 
@@ -265,7 +265,7 @@ class Voxel2Mesh(nn.Module):
             vertices = pred[k][i+1][0]
             faces = pred[k][i+1][1]
             latent_features = pred[k][i+1][2]
-            features.append(latent_features[:, 0:42])
+            features.append(latent_features[:, 0:1000])
         x = torch.concat(features,2).flatten()
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -307,7 +307,7 @@ class Voxel2Mesh(nn.Module):
                 angle_distortion_loss += (angle_d**2).mean()
                 area_distortion_loss += (1/(area_d**2+1)).mean()
 
-                pred_points = sample_points_from_meshes(pred_mesh, 100)
+                pred_points = sample_points_from_meshes(pred_mesh, 1000)
                 
                 chamfer_loss +=  chamfer_distance(pred_points, target)[0]
                 if c == self.config.num_classes-2: #base nodule

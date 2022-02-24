@@ -71,7 +71,6 @@ class Evaluator(object):
             write_to_wandb(writer, epoch, split, performences, self.config.num_classes)
 
         if self.support.update_checkpoint(best_so_far=self.current_best, new_value=performences):
-
             mkdir(self.save_path) 
             mkdir(self.save_path + '/mesh')
             mkdir(self.save_path + '/voxels')
@@ -114,7 +113,7 @@ class Evaluator(object):
         elif name == 'voxel2mesh':
             
             x = data['x']
-            pred = self.net(data) 
+            pred, output = self.net(data) 
 
             pred_meshes = []
             sphr_meshes = []
@@ -137,11 +136,11 @@ class Evaluator(object):
                 true_points += [data['surface_points'][c].data.cpu()]
 
                 _, _, D, H, W = x.shape
-                shape = torch.tensor([D,H,W]).int().cuda()
+                shape = torch.tensor([D,H,W]).int().cuda(config.device)
                 rasterizer = Rasterize(shape)
                 pred_voxels_rasterized = rasterizer(pred_vertices, pred_faces).long()
                  
-                pred_voxels += pred_voxels_rasterized 
+                pred_voxels += pred_voxels_rasterized.cpu()
 
             true_voxels = data['y_voxels'].data.cpu() 
  
@@ -152,7 +151,7 @@ class Evaluator(object):
  
 
         x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
-        return x, y, y_hat
+        return x, y, y_hat, output
 
     def evaluate_set(self, dataloader):
         performance = {}
@@ -160,7 +159,7 @@ class Evaluator(object):
   
         for i, data in enumerate(dataloader):
 
-            x, y, y_hat = self.predict(data, self.config)
+            x, y, y_hat, output = self.predict(data, self.config)
             result = self.support.evaluate(y, y_hat, self.config)
  
  

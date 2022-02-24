@@ -43,9 +43,9 @@ class DatasetAndSupport(object):
  
 def get_item(item, mode, config):
 
-    x = item.x.cuda()[None]
-    y = item.y.cuda()  
-    y_outer = item.y_outer.cuda()   
+    x = item.x.cuda(config.device)[None]
+    y = item.y.cuda(config.device)  
+    y_outer = item.y_outer.cuda(config.device)   
     shape = item.shape  
 
    # print("Y1", y.unique(), flush=True)
@@ -118,7 +118,7 @@ def get_item(item, mode, config):
      
         perm = torch.randperm(len(surface_points_normalized))
         point_count = 3000
-        surface_points_normalized_all += [surface_points_normalized[perm[:np.min([len(perm), point_count])]].cuda()]  # randomly pick 3000 points
+        surface_points_normalized_all += [surface_points_normalized[perm[:np.min([len(perm), point_count])]].cuda(config.device)]  # randomly pick 3000 points
     
 
     return {   'x': x, 

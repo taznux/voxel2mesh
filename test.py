@@ -1,8 +1,4 @@
 import os
-GPU_index = "0"
-os.environ["CUDA_VISIBLE_DEVICES"] = GPU_index
-
-  
 import logging
 import torch
 import numpy as np
@@ -66,7 +62,7 @@ def main():
 
     print("Create network")
     classifier = network(cfg)
-    classifier.cuda()
+    classifier.cuda(cfg.device)
  
 
     wandb.init(name='Experiment_{}/trial_{}'.format(cfg.experiment_idx, trial_id), project="vm-net", dir=trial_path)

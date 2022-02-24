@@ -145,10 +145,10 @@ class Chaos():
                 base_grid[:, :, :, :, 1] = h_points
                 base_grid[:, :, :, :, 2] = d_points
                 
-                grid = base_grid.cuda()
+                grid = base_grid.cuda(cfg.device)
                  
                 
-                x = torch.from_numpy(x).cuda()
+                x = torch.from_numpy(x).cuda(cfg.device)
                 x = F.grid_sample(x[None, None], grid, mode='bilinear', padding_mode='border', align_corners=True)[0, 0]
                 x = x.data.cpu().numpy() 
                 #----
@@ -179,7 +179,7 @@ class Chaos():
                 y = np.array(y) 
                 y = np.int64(y) 
 
-                y = torch.from_numpy(y).cuda()
+                y = torch.from_numpy(y).cuda(cfg.device)
                 y = F.grid_sample(y[None, None].float(), grid, mode='nearest', padding_mode='border', align_corners=True)[0, 0]
                 y = y.data.cpu().numpy()
 

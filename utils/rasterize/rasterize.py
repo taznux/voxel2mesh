@@ -24,14 +24,14 @@ class RasterizeFunction(Function):
 
         N, _, _ = vertices.shape
         D, H, W = shape 
-        shape = torch.tensor([D,H,W]).int().cuda()
+        shape = torch.tensor([D,H,W]).int().cuda(shape.device)
         volume = []
 
         if not vertices.is_cuda:
-            vertices = vertices.cuda()
+            vertices = vertices.cuda(shape.device)
 
         if not faces.is_cuda:
-            faces = faces.cuda()    
+            faces = faces.cuda(shape.device)    
                  
         for vertices_, faces_ in zip(vertices, faces):
             v = (shape[None].float() - 1) * (vertices_.clone() + 1)/2 
@@ -61,7 +61,7 @@ class RasterizeFunction(Function):
 
         grad_volume = grad_output.contiguous()
         D, H, W = shape 
-        shape = torch.tensor([D,H,W]).int().cuda()
+        shape = torch.tensor([D,H,W]).int().cuda(vertices.device)
         grad_vertices = []
         # embed()
                  

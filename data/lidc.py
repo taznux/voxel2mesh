@@ -1,3 +1,4 @@
+from importlib_metadata import metadata
 import numpy as np
 from data.data import get_item, sample_to_sample_plus
 
@@ -7,6 +8,7 @@ from utils.utils_common import DataModes
 
 import torch
 import pickle
+import pandas as pd
 
 selected = ['LIDC-IDRI-0072', 'LIDC-IDRI-0090', 'LIDC-IDRI-0138', 'LIDC-IDRI-0149', 'LIDC-IDRI-0162', 'LIDC-IDRI-0163',
             'LIDC-IDRI-0166', 'LIDC-IDRI-0167', 'LIDC-IDRI-0168', 'LIDC-IDRI-0171', 'LIDC-IDRI-0178', 'LIDC-IDRI-0180',
@@ -38,9 +40,10 @@ class SamplePlus:
 
   
 class LIDCDataset():
-    def __init__(self, data, pids, cfg, mode): 
+    def __init__(self, data, pids, metadata, cfg, mode): 
         self.data = data  
         self.pids = pids
+        self.metadata = metadata
 
         self.cfg = cfg
         self.mode = mode
@@ -55,6 +58,8 @@ class LIDCDataset():
         #print(self.pids[idx])
         item = get_item(item, self.mode, self.cfg) 
         item['pid'] = self.pids[idx]
+        item['metadata'] = self.metadata.query(f"PID=='{item['pid']}'").iloc[0].to_dict()
+    
         return item
 
   
@@ -74,12 +79,15 @@ class LIDC():
         down_sample_shape = cfg.patch_shape
 
         data_root = cfg.dataset_path
+        metadata = pd.read_csv(data_root+"/../LIDC_nodule_info.csv")
+        metadata = metadata.query("NID==1")
         data = {}
         for i, datamode in enumerate([DataModes.TRAINING, DataModes.VALIDATION, DataModes.TESTING]):
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'rb') as handle:
                 samples, sample_pids = pickle.load(handle)
+                samples, sample_pids  = samples[0:2], sample_pids[0:2]
                 new_samples = sample_to_sample_plus(samples, cfg, datamode)
-                data[datamode] = LIDCDataset(new_samples, sample_pids, cfg, datamode) 
+                data[datamode] = LIDCDataset(new_samples, sample_pids, metadata, cfg, datamode) 
 
         return data
 

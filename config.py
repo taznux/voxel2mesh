@@ -17,7 +17,8 @@ def load_config(exp_id):
     ''' Experiment '''
     cfg.experiment_idx = exp_id 
     cfg.trial_id = None
-    
+
+    cfg.device = "cuda:0"
     cfg.save_dir_prefix = 'Experiment_' # prefix for experiment folder
     cfg.name = 'voxel2mesh'
 

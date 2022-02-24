@@ -118,7 +118,7 @@ def crop(image, patch_shape, center, mode='constant'):
 
 
 def blend(img, labels, num_classes):
-    colors = torch.tensor([[0, 0, 0], [0, 255, 0], [255, 0, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 0]]).cuda().float()
+    colors = torch.tensor([[0, 0, 0], [0, 255, 0], [255, 0, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 0]]).cuda(img.device).float()
 
 
     img = img[..., None].repeat(1, 1, 1, 3)

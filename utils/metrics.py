@@ -46,7 +46,7 @@ def chamfer_directed(A, B):
 
         loss = torch.mean(loss)
     else:
-        loss = torch.Tensor([float("Inf")]).cuda() if A.is_cuda else torch.Tensor([float("Inf")])
+        loss = torch.Tensor([float("Inf")]).cuda(A.device) if A.is_cuda else torch.Tensor([float("Inf")])
 
     return loss
 

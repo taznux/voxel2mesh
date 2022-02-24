@@ -15,12 +15,12 @@ class SkipConnections(nn.Module):
         else:
             D, H, W = config.config.low_resolution
         # assert D == H == W, 'should be of same dim'
-        self.shape = torch.tensor([W, H, D]).cuda().float()
+        self.shape = torch.tensor([W, H, D]).cuda(config.device).float()
 
         self.shift = torch.tensor(list(product((-1, 0, 1), repeat=3)))[None].float() * torch.tensor([[[2/(W-1), 2/(H-1), 2/(D-1)]]])[None]
-        self.shift = self.shift.cuda()
+        self.shift = self.shift.cuda(config.device)
 
-        self.sum_neighbourhood = nn.Conv2d(features_count, features_count, kernel_size=(1, 27), padding=0).cuda()
+        self.sum_neighbourhood = nn.Conv2d(features_count, features_count, kernel_size=(1, 27), padding=0).cuda(config.device)
 
         torch.nn.init.kaiming_normal_(self.sum_neighbourhood.weight, nonlinearity='relu')
         torch.nn.init.constant_(self.sum_neighbourhood.bias, 0)
@@ -42,12 +42,12 @@ class NeighbourhoodSampling(nn.Module):
             D, H, W = config.config.hint_patch_shape
         else:
             D, H, W = config.config.low_resolution 
-        self.shape = torch.tensor([W, H, D]).cuda().float()
+        self.shape = torch.tensor([W, H, D]).cuda(config.device).float()
 
         self.shift = torch.tensor(list(product((-1, 0, 1), repeat=3)))[None].float() * torch.tensor([[[2 ** (config.steps+1 - step)/(W), 2 ** (config.steps+1 - step)/(H), 2 ** (config.steps+1 - step)/(D)]]])[None]
-        self.shift = self.shift.cuda()
+        self.shift = self.shift.cuda(config.device)
 
-        self.sum_neighbourhood = nn.Conv2d(features_count, features_count, kernel_size=(1, 27), padding=0).cuda()
+        self.sum_neighbourhood = nn.Conv2d(features_count, features_count, kernel_size=(1, 27), padding=0).cuda(config.device)
 
         # torch.nn.init.kaiming_normal_(self.sum_neighbourhood.weight, nonlinearity='relu')
         # torch.nn.init.constant_(self.sum_neighbourhood.bias, 0)
@@ -84,16 +84,16 @@ class LearntNeighbourhoodSampling(nn.Module):
         super(LearntNeighbourhoodSampling, self).__init__()
 
         D, H, W = config.patch_shape 
-        self.shape = torch.tensor([W, H, D]).cuda().float()
+        self.shape = torch.tensor([W, H, D]).cuda(config.device).float()
 
         self.shift = torch.tensor(list(product((-1, 0, 1), repeat=3)))[None].float() * torch.tensor([[[2 ** (config.steps+1 - step)/(W), 2 ** (config.steps+1 - step)/(H), 2 ** (config.steps+1 - step)/(D)]]])[None]
-        self.shift = self.shift.cuda()
+        self.shift = self.shift.cuda(config.device)
 
-        self.sum_neighbourhood = nn.Conv2d(features_count, features_count, kernel_size=(1, 27), padding=0).cuda()
+        self.sum_neighbourhood = nn.Conv2d(features_count, features_count, kernel_size=(1, 27), padding=0).cuda(config.device)
 
         # torch.nn.init.kaiming_normal_(self.sum_neighbourhood.weight, nonlinearity='relu')
         # torch.nn.init.constant_(self.sum_neighbourhood.bias, 0)
-        self.shift_delta = nn.Conv1d(features_count, 27*3, kernel_size=(1), padding=0).cuda()
+        self.shift_delta = nn.Conv1d(features_count, 27*3, kernel_size=(1), padding=0).cuda(config.device)
         self.shift_delta.weight.data.fill_(0.0)
         self.shift_delta.bias.data.fill_(0.0)
 

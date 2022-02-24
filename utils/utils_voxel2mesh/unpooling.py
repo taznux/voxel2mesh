@@ -72,7 +72,7 @@ def adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
 
     face_count, _ = faces_primary.shape
     vertices_count = len(vertices_primary)
-    edge_combinations_3 = torch.tensor(list(combinations(range(3), 2))).cuda()
+    edge_combinations_3 = torch.tensor(list(combinations(range(3), 2))).cuda(vertices.device)
     edges = faces_primary[:, edge_combinations_3]
     unique_edges = edges.view(-1, 2)
     unique_edges, _ = torch.sort(unique_edges, dim=1)
@@ -99,7 +99,7 @@ def adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
 
     sorted_, _ = torch.sort(dist)
     threshold = sorted_[int(0.3*len(sorted_))] 
-    selected = torch.cat([torch.arange(N_prev).cuda(), (dist > threshold).nonzero()[:,0]+N_prev])
+    selected = torch.cat([torch.arange(N_prev).cuda(vertices.device), (dist > threshold).nonzero()[:,0]+N_prev])
 
     vertices_needed = vertices_secondary[dist > threshold]
     
@@ -114,17 +114,17 @@ def adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
     sphere_vertices = torch.cat([sphere_vertices_primary,sphere_vertices_needed],dim=0) 
     sphere_vertices = sphere_vertices/torch.sqrt(torch.sum(sphere_vertices**2,dim=1)[:,None])
     hull = ConvexHull(sphere_vertices.data.cpu().numpy())  
-    faces = torch.from_numpy(hull.simplices).long().cuda()
+    faces = torch.from_numpy(hull.simplices).long().cuda(vertices.device)
 
     """
-    selected = torch.cat([torch.arange(N_prev).cuda(), (dist > threshold).nonzero()[:,0]+N_prev])
+    selected = torch.cat([torch.arange(N_prev).cuda(vertices.device), (dist > threshold).nonzero()[:,0]+N_prev])
     #print(sphere_vertices.shape,faces.shape)
 
     mesh = trimesh.Trimesh(vertices=sphere_vertices.data.cpu().numpy(), faces=hull.simplices)
     trimesh.repair.fix_normals(mesh)
     #print(mesh, dist.shape, (dist > threshold).sum())
     #mesh.show()
-    faces = torch.from_numpy(mesh.faces).long().cuda()
+    faces = torch.from_numpy(mesh.faces).long().cuda(vertices.device)
 
     f0 = (faces[:,0]==selected.reshape(-1,1)).any(0)
     f1 = (faces[:,1]==selected.reshape(-1,1)).any(0)
@@ -142,7 +142,7 @@ def adaptive_unpool(vertices, faces_prev, sphere_vertices, latent_features, N_pr
     trimesh.repair.fill_holes(mesh)
     #mesh.show()
     #print(mesh, mesh.faces, mesh.faces.max(), vertices.shape, N_prev)
-    faces = torch.from_numpy(mesh.faces).long().cuda()[None]
+    faces = torch.from_numpy(mesh.faces).long().cuda(vertices.device)[None]
     """
     sphere_vertices = sphere_vertices[None]
     faces = faces[None]

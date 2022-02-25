@@ -287,7 +287,7 @@ class Voxel2Mesh(nn.Module):
         angle_distortion_loss = torch.tensor(0).float().cuda(self.config.device)  
         area_distortion_loss = torch.tensor(0).float().cuda(self.config.device)  
 
-        target = F.one_hot((data['metadata']['Malignancy']>3).long().cuda(self.config.device), 2)
+        target = F.one_hot((data['metadata']['Malignancy']).long().cuda(self.config.device), 2)
         loss = nn.BCELoss()#eight=torch.tensor([0.1, 1]).cuda(self.config.device)  )
         bce_loss += loss(output, target[0].float())
 

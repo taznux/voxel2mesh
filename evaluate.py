@@ -153,7 +153,7 @@ class Evaluator(object):
     
 
                 x = x.detach().data.cpu()  
-                target = data['metadata']['Malignancy']>3
+                target = data['metadata']['Malignancy']
                 y = Structure(mesh=true_meshes, voxel=true_voxels, points=true_points, malignant=target[0])
                 y_hat = Structure(mesh=pred_meshes, voxel=pred_voxels, sphr_mesh=sphr_meshes, malignant=output[1])
 
@@ -184,7 +184,8 @@ class Evaluator(object):
         labels = np.asarray(labels)
         preds = np.asarray(preds)
         fpr, tpr, thresholds = roc_curve(labels, preds, pos_label=1)
-        t = thresholds[np.sqrt((1-fpr)**2+tpr**2).argmax()]
+        #t = thresholds[np.sqrt((1-fpr)**2+tpr**2).argmax()]
+        t = 0.5
         auc_ = auc(fpr, tpr)
         CM = confusion_matrix(labels, preds>t, labels=[0,1])
         tn=CM[0][0]

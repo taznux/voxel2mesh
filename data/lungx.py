@@ -21,9 +21,9 @@ class LUNGx(LIDC):
         data = {}
         for i, datamode in enumerate([DataModes.TRAINING, DataModes.TESTING]):
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'rb') as handle:
-                samples, sample_pids = pickle.load(handle)
+                samples, sample_pids, metadata = pickle.load(handle)
                 new_samples = sample_to_sample_plus(samples, cfg, datamode)
-                data[datamode] = LIDCDataset(new_samples, sample_pids, cfg, datamode) 
+                data[datamode] = LIDCDataset(new_samples, sample_pids, metadata, cfg, datamode) 
 
         return data
 
@@ -48,7 +48,7 @@ class LUNGx(LIDC):
                 y = torch.from_numpy(np.load(sample.replace("0.npy", "seg.npy"))) # peak segmenation with nodule area
                 y1 = torch.from_numpy(np.load(sample.replace("0.npy", "1.npy"))[0]) # area distortion map
                 y2 = torch.from_numpy(np.load(sample.replace("0.npy", "2.npy"))[0]) # nodule segmentation
-                y = ((y == 2) + 2*(y == 3)) * (y1 <= 0) # peaks
+                y = (2*(y == 2).type(torch.uint8) + (y == 3).type(torch.uint8)) * (y1 <= 0).type(torch.uint8) # peaks
                 y = 3*y2 - y.type(torch.uint8) # apply nodule mask
                 
                 #y[y==1] = 5 # nodule
@@ -80,10 +80,20 @@ class LUNGx(LIDC):
                 samples.append(Sample(x, y)) 
                 sample_pids.append(pid)
 
+            if datamode == DataModes.TRAINING:
+                metadata = pd.read_excel(data_root + "/../CalibrationSet_NoduleData.xlsx")
+                metadata = metadata.rename(columns={"Scan Number":"PID", "Diagnosis":"Malignancy"})
+                metadata.loc[:, "Malignancy"] = metadata.Malignancy == "malignant"
+            else:
+                metadata = pd.read_excel(data_root + "/../TestSet_NoduleData_PublicRelease_wTruth.xlsx")
+                metadata = metadata.rename(columns={"Scan Number":"PID", "Final Diagnosis":"Malignancy"})
+                metadata.loc[:, "Malignancy"] = metadata.Malignancy != "Benign nodule"
+            metadata = metadata.dropna()
+            print(metadata)
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'wb') as handle:
-                pickle.dump((samples, sample_pids), handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump((samples, sample_pids, metadata), handle, protocol=pickle.HIGHEST_PROTOCOL) 
 
-            data[datamode] = LIDCDataset(samples, sample_pids, cfg, datamode)
+            data[datamode] = LIDCDataset(samples, sample_pids, metadata, cfg, datamode)
         
         print('Pre-processing complete') 
         return data

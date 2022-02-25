@@ -80,12 +80,10 @@ class LIDC():
         down_sample_shape = cfg.patch_shape
 
         data_root = cfg.dataset_path
-        metadata = pd.read_csv(data_root+"/../LIDC_nodule_info.csv")
-        metadata = metadata.query("NID==1")
         data = {}
         for i, datamode in enumerate([DataModes.TRAINING, DataModes.VALIDATION, DataModes.TESTING]):
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'rb') as handle:
-                samples, sample_pids = pickle.load(handle)
+                samples, sample_pids, metadata = pickle.load(handle)
                 #samples, sample_pids  = samples[0:10], sample_pids[0:10]
                 new_samples = sample_to_sample_plus(samples, cfg, datamode)
                 data[datamode] = LIDCDataset(new_samples, sample_pids, metadata, cfg, datamode) 
@@ -94,6 +92,10 @@ class LIDC():
 
     def pre_process_dataset(self, cfg):
         data_root = cfg.dataset_path
+        metadata = pd.read_csv(data_root+"/../LIDC_nodule_info.csv")
+        metadata = metadata.query("NID==1")
+        metadata.loc[:, "Malignancy"] = metadata.Malignancy > 3
+        print(metadata)
         samples = glob.glob(f"{data_root}LIDC*s_0*0.npy")
  
         pids = []
@@ -112,7 +114,7 @@ class LIDC():
                 y = torch.from_numpy(np.load(sample.replace("0.npy", "seg.npy"))) # peak segmenation with nodule area
                 y1 = torch.from_numpy(np.load(sample.replace("0.npy", "1.npy"))[0]) # area distortion map
                 y2 = torch.from_numpy(np.load(sample.replace("0.npy", "2.npy"))[0]) # nodule segmentation
-                y = ((y == 2) + 2*(y == 3)) * (y1 <= 0) # peaks
+                y = (2*(y == 2).type(torch.uint8) + (y == 3).type(torch.uint8)) * (y1 <= 0).type(torch.uint8) # peaks
                 y = 3*y2 - y.type(torch.uint8) # apply nodule mask
                 
                 #y[y==1] = 5 # nodule
@@ -146,10 +148,12 @@ class LIDC():
                 samples.append(Sample(x, y)) 
                 sample_pids.append(pid)
 
-            with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'wb') as handle:
-                pickle.dump((samples, sample_pids), handle, protocol=pickle.HIGHEST_PROTOCOL)
+            metadata_ = metadata[metadata.PID.isin(sample_pids)]
 
-            data[datamode] = LIDCDataset(samples, sample_pids, cfg, datamode)
+            with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'wb') as handle:
+                pickle.dump((samples, sample_pids, metadata_), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            data[datamode] = LIDCDataset(samples, sample_pids, metadata_, cfg, datamode)
         
         print('Pre-processing complete') 
         return data

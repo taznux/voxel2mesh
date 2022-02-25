@@ -72,7 +72,6 @@ class Trainer(object):
 
                 if iteration % self.eval_every == self.eval_every-1:  # print every K epochs
                     self.evaluator.evaluate(int((iteration+1)/self.eval_every))
-                    self.net = self.net.train()
                 if iteration > self.numb_of_itrs:
                     break
    

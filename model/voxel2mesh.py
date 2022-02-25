@@ -288,7 +288,7 @@ class Voxel2Mesh(nn.Module):
         area_distortion_loss = torch.tensor(0).float().cuda(self.config.device)  
 
         target = F.one_hot((data['metadata']['Malignancy']>3).long().cuda(self.config.device), 2)
-        loss = nn.BCELoss(weight=torch.tensor([0.1, 1]).cuda(self.config.device)  )
+        loss = nn.BCELoss()#eight=torch.tensor([0.1, 1]).cuda(self.config.device)  )
         bce_loss += loss(output, target[0].float())
 
         for c in range(self.config.num_classes-1):
@@ -302,8 +302,8 @@ class Voxel2Mesh(nn.Module):
             for k, (vertices, faces, _, _, sphere_vertices) in enumerate(pred[c][1:]):
                 pred_mesh = Meshes(verts=list(vertices), faces=list(faces))
                 sphere_mesh = Meshes(verts=list(sphere_vertices), faces=list(faces))
-                angle_d = angle_distortions(pred_mesh, sphere_mesh)
-                area_d = area_distortions(pred_mesh, sphere_mesh)
+                angle_d = angle_distortions(pred_mesh.detach(), sphere_mesh.detach())
+                area_d = area_distortions(pred_mesh.detach(), sphere_mesh.detach())
                 angle_distortion_loss += (angle_d**2).mean()
                 area_distortion_loss += (1/(area_d**2+1)).mean()
 
@@ -311,7 +311,7 @@ class Voxel2Mesh(nn.Module):
                 
                 chamfer_loss +=  chamfer_distance(pred_points, target)[0]
                 if c == self.config.num_classes-2: #base nodule
-                    laplacian_loss +=   mesh_laplacian_smoothing(pred_mesh, method="uniform")
+                    laplacian_loss +=  mesh_laplacian_smoothing(pred_mesh, method="uniform")
                     normal_consistency_loss += mesh_normal_consistency(pred_mesh) 
                     edge_loss += mesh_edge_loss(pred_mesh) 
 

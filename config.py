@@ -11,12 +11,12 @@ class Config():
         super(Config, self).__init__()
 
 
-def load_config(exp_id):
+def load_config():
       
     cfg = Config()
     ''' Experiment '''
-    cfg.experiment_idx = exp_id 
-    cfg.trial_id = None
+    cfg.experiment_idx = 1 
+    cfg.trial_id = 1 #None
 
     cfg.device = "cuda:0"
     cfg.save_dir_prefix = 'Experiment_' # prefix for experiment folder
@@ -27,11 +27,9 @@ def load_config(exp_id):
     save_path: results will be saved at this location
     dataset_path: dataset must be stored here.
     '''
-    #cfg.save_path = './experiments/test/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    #cfg.dataset_path = '/data/apps/users/wxc151/CHAOS/Train_Sets/CT' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     cfg.save_path = './experiments/LIDC/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    cfg.dataset_path = '/home/wxc151/data/spiculation/LIDC_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    cfg.ext_dataset_path = '/home/wxc151/data/spiculation/LUNGx_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.dataset_path = './data/spiculation/LIDC_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.ext_dataset_path = './data/spiculation/LUNGx_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     
     # cfg.save_path = '/your/path/to/experiments/miccai2020/' # results will be saved here
     # cfg.dataset_path = '/your/path/to/dataset' # path to the dataset
@@ -42,8 +40,6 @@ def load_config(exp_id):
     #cfg.data_obj = None     # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     cfg.data_obj = LIDC() 
     cfg.data_obj_ext = LUNGx() 
-    #cfg.data_obj = Chaos() 
-    # cfg.data_obj = Hippocampus()
 
 
     assert cfg.save_path != None, "Set cfg.save_path in config.py"

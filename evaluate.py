@@ -94,6 +94,14 @@ class Evaluator(object):
             try:
                 dataloader = DataLoader(self.data[split], batch_size=1, shuffle=False) 
                 performences[split], predictions[split] = self.evaluate_set(dataloader)
+                
+                write_to_wandb(writer, epoch, split, performences, self.config.num_classes)
+                if split == DataModes.TESTING:
+                    self.data[split].metadata.Malignancy = self.data[split].metadata.Malignancy_weak
+                    print("\n LIDC 72 RM")
+                    dataloader = DataLoader(self.data[split], batch_size=1, shuffle=False) 
+                    performences[split], predictions[split] = self.evaluate_set(dataloader)
+                    write_to_wandb(writer, epoch, split, performences, self.config.num_classes)
             except:
                 continue
 

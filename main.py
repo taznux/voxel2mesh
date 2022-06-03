@@ -47,10 +47,8 @@ def init(cfg):
 
 
 def main():
-    exp_id = 3
-
     # Initialize
-    cfg = load_config(exp_id)
+    cfg = load_config()
     trial_path, trial_id = init(cfg) 
  
     print('Experiment ID: {}, Trial ID: {}'.format(cfg.experiment_idx, trial_id))

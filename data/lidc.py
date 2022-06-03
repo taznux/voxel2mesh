@@ -58,7 +58,9 @@ class LIDCDataset():
         item = self.data[idx] 
         #print(self.pids[idx])
         item = get_item(item, self.mode, self.cfg) 
-        item['pid'] = self.pids[idx]
+        item['pid'] = self.pids[idx].upper()
+        self.metadata.loc[:, "PID"] = self.metadata.PID.apply(lambda x : x.upper())
+
         item['metadata'] = self.metadata.query(f"PID=='{item['pid']}'").iloc[0].to_dict()
     
         return item
@@ -89,13 +91,28 @@ class LIDC():
                 data[datamode] = LIDCDataset(new_samples, sample_pids, metadata, cfg, datamode) 
 
         return data
+    
+    def quick_load_data_wo3(self, cfg, trial_id):
+        # assert cfg.patch_shape == (64, 256, 256), 'Not supported'
+        down_sample_shape = cfg.patch_shape
+
+        data_root = cfg.dataset_path
+        data = {}
+        for i, datamode in enumerate([DataModes.TRAINING, DataModes.VALIDATION]):
+            with open(data_root + '/pre_computed_data_{}_{}_wo3.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'rb') as handle:
+                samples, sample_pids, metadata = pickle.load(handle)
+                #samples, sample_pids  = samples[0:10], sample_pids[0:10]
+                new_samples = sample_to_sample_plus(samples, cfg, datamode)
+                data[datamode] = LIDCDataset(new_samples, sample_pids, metadata, cfg, datamode) 
+
+        return data
 
     def pre_process_dataset(self, cfg):
         data_root = cfg.dataset_path
         metadata = pd.read_csv(data_root+"/../LIDC_nodule_info.csv")
         metadata = metadata.query("NID==1")
-        metadata.loc[:, "Malignancy"] = metadata.Malignancy > 3
-        print(metadata)
+        metadata.loc[:, "Malignancy"] = (metadata.Malignancy > 3).values.copy()
+        metadata1 = pd.read_csv(data_root+"/../LIDC-outcome_new.csv")
         samples = glob.glob(f"{data_root}LIDC*s_0*0.npy")
  
         pids = []
@@ -148,9 +165,94 @@ class LIDC():
                 samples.append(Sample(x, y)) 
                 sample_pids.append(pid)
 
-            metadata_ = metadata[metadata.PID.isin(sample_pids)]
+            if datamode == DataModes.TESTING:
+                metadata_ = metadata.loc[metadata.PID.isin(sample_pids)]
+                metadata_.loc[:, "Malignancy_weak"] = metadata_.Malignancy
+                metadata_.loc[:, "Malignancy"] = metadata1.malignancy.values == 2
+            else:
+                metadata_ = metadata.loc[metadata.PID.isin(sample_pids)]
+            print(metadata_)
 
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'wb') as handle:
+                pickle.dump((samples, sample_pids, metadata_), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            data[datamode] = LIDCDataset(samples, sample_pids, metadata_, cfg, datamode)
+        
+        print('Pre-processing complete') 
+        return data
+    
+    def pre_process_dataset_wo3(self, cfg):
+        data_root = cfg.dataset_path
+        metadata = pd.read_csv(data_root+"/../LIDC_nodule_info.csv")
+        metadata = metadata.query("NID==1")
+        ambiguos = (metadata.Malignancy == 3) & (~metadata.PID.isin(selected))
+        metadata.loc[:, "Malignancy"] = (metadata.Malignancy > 3).values.copy()
+        metadata = metadata.loc[~ambiguos]
+        metadata1 = pd.read_csv(data_root+"/../LIDC-outcome_new.csv")
+        samples = glob.glob(f"{data_root}LIDC*s_0*0.npy")
+ 
+        pids = []
+        inputs = []
+        labels = []
+
+        print('Data pre-processing - LIDC Dataset')
+        for sample in samples:
+            if 'pickle' not in sample:
+                print('.', end='', flush=True)
+
+                pid = sample.split("/")[-1].split("_")[0]
+                if pid not in metadata.PID.values:
+                    print(f"{pid}", end = " ")
+                    continue
+                pids += [pid]
+                x = torch.from_numpy(np.load(sample)[0])
+                inputs += [x]
+                y = torch.from_numpy(np.load(sample.replace("0.npy", "seg.npy"))) # peak segmenation with nodule area
+                y1 = torch.from_numpy(np.load(sample.replace("0.npy", "1.npy"))[0]) # area distortion map
+                y2 = torch.from_numpy(np.load(sample.replace("0.npy", "2.npy"))[0]) # nodule segmentation
+                y = (2*(y == 2).type(torch.uint8) + (y == 3).type(torch.uint8)) * (y1 <= 0).type(torch.uint8) # peaks
+                y = 3*y2 - y.type(torch.uint8) # apply nodule mask
+                
+                #y[y==1] = 5 # nodule
+                #y[y==2] = 1 # spiculation
+                #y[y==3] = 1 # lobulation
+                #y[y==4] = 2 # attachment
+                #y[y>=5] = 2 # others
+                labels += [y]
+
+        print('\nSaving pre-processed data to disk')
+        np.random.seed(34234)
+        train_val_idx = [x for x in range(len(inputs)) if pids[x] not in selected]
+        test_idx = [x for x in range(len(inputs)) if pids[x] in selected]
+        perm = np.random.permutation(train_val_idx) 
+        counts = [perm[:len(train_val_idx)//2], perm[len(train_val_idx)//2:], test_idx]
+ 
+        data = {}
+        down_sample_shape = cfg.patch_shape
+
+
+        for i, datamode in enumerate([DataModes.TRAINING, DataModes.VALIDATION, DataModes.TESTING]):
+            samples = []
+            sample_pids = []
+ 
+            for j in counts[i]: 
+                print('.',end='', flush=True)
+                pid = pids[j]
+                x = inputs[j]
+                y = labels[j]
+
+                samples.append(Sample(x, y)) 
+                sample_pids.append(pid)
+
+            if datamode == DataModes.TESTING:
+                metadata_ = metadata.loc[metadata.PID.isin(sample_pids)]
+                metadata_.loc[:, "Malignancy_weak"] = metadata_.Malignancy
+                metadata_.loc[:, "Malignancy"] = metadata1.malignancy.values == 2
+            else:
+                metadata_ = metadata.loc[metadata.PID.isin(sample_pids)]
+            print(metadata_)
+
+            with open(data_root + '/pre_computed_data_{}_{}_wo3.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'wb') as handle:
                 pickle.dump((samples, sample_pids, metadata_), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
             data[datamode] = LIDCDataset(samples, sample_pids, metadata_, cfg, datamode)
@@ -190,7 +292,7 @@ class LIDC():
             return True
         else:
             best_so_far = best_so_far[DataModes.VALIDATION][key]
-            return True if np.mean(new_value) > np.mean(best_so_far) else False
+            return True if np.nanmean(new_value) > np.nanmean(best_so_far) else False
 
 
 

@@ -26,7 +26,7 @@ from model.voxel2mesh import Voxel2Mesh as network
  
 def main():
     # Initialize
-    cfg = load_config(None)
+    cfg = load_config()
  
   
     print("Pre-process data") 

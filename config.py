@@ -28,8 +28,8 @@ def load_config():
     dataset_path: dataset must be stored here.
     '''
     cfg.save_path = './experiments/LIDC/'   # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    cfg.dataset_path = './data/spiculation/LIDC_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
-    cfg.ext_dataset_path = './data/spiculation/LUNGx_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.dataset_path = '../../DATA/LIDC_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
+    cfg.ext_dataset_path = '../../DATA/LUNGx_spiculation/generated_vol_iso64x64x64/' # UPDATE HERE <<<<<<<<<<<<<<<<<<<<<<
     
     # cfg.save_path = '/your/path/to/experiments/miccai2020/' # results will be saved here
     # cfg.dataset_path = '/your/path/to/dataset' # path to the dataset

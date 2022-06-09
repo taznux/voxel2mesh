@@ -80,14 +80,12 @@ class LUNGx(LIDC):
                 samples.append(Sample(x, y)) 
                 sample_pids.append(pid)
 
+            metadata = pd.read_csv(data_root + "/../LUNGx.csv")
             if datamode == DataModes.TRAINING:
-                metadata = pd.read_excel(data_root + "/../CalibrationSet_NoduleData.xlsx")
-                metadata = metadata.rename(columns={"Scan Number":"PID", "Diagnosis":"Malignancy"})
-                metadata.loc[:, "Malignancy"] = metadata.Malignancy == "malignant"
+                metadata = metadata.iloc[0:10]
             else:
-                metadata = pd.read_excel(data_root + "/../TestSet_NoduleData_PublicRelease_wTruth.xlsx")
-                metadata = metadata.rename(columns={"Scan Number":"PID", "Final Diagnosis":"Malignancy"})
-                metadata.loc[:, "Malignancy"] = metadata.Malignancy != "Benign nodule"
+                metadata = metadata.iloc[10:]
+            metadata.loc[:, "Malignancy"] = metadata.malignancy > 0
             metadata = metadata.dropna()
             print(metadata)
             with open(data_root + '/pre_computed_data_{}_{}.pickle'.format(datamode, "_".join(map(str, down_sample_shape))), 'wb') as handle:
